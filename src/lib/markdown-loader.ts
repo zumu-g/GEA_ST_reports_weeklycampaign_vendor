@@ -561,3 +561,122 @@ async function appendToPropertyTable(
     // Property file may not exist yet
   }
 }
+
+// --- Activity feed + comments (JSON sidecars) ---
+
+export type ActivitySource = 'clickup' | 'telegram' | 'analytics' | 'inspection' | 'comment';
+
+export interface ActivityEvent {
+  id: string;
+  ts: string;
+  source: ActivitySource;
+  actor: string;
+  summary: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface CommentEntry {
+  id: string;
+  ts: string;
+  author: 'agent' | 'vendor';
+  body: string;
+  read_by_agent: boolean;
+  read_by_vendor: boolean;
+}
+
+function randomId(): string {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+async function readJsonSidecar<T>(slug: string, file: string): Promise<T[]> {
+  const filePath = path.join(PROPERTIES_DIR, slug, file);
+  try {
+    const raw = await fs.readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeJsonSidecar<T>(slug: string, file: string, items: T[]): Promise<void> {
+  const dir = path.join(PROPERTIES_DIR, slug);
+  await fs.mkdir(dir, { recursive: true });
+  const filePath = path.join(dir, file);
+  await fs.writeFile(filePath, JSON.stringify(items, null, 2) + '\n', 'utf-8');
+}
+
+export async function readActivity(slug: string): Promise<ActivityEvent[]> {
+  return readJsonSidecar<ActivityEvent>(slug, 'activity.json');
+}
+
+export async function appendActivity(
+  slug: string,
+  event: Omit<ActivityEvent, 'id' | 'ts'> & { ts?: string }
+): Promise<ActivityEvent> {
+  const items = await readActivity(slug);
+  const entry: ActivityEvent = {
+    id: randomId(),
+    ts: event.ts || new Date().toISOString(),
+    source: event.source,
+    actor: event.actor,
+    summary: event.summary,
+    meta: event.meta,
+  };
+  items.push(entry);
+  await writeJsonSidecar(slug, 'activity.json', items);
+  return entry;
+}
+
+export async function readComments(slug: string): Promise<CommentEntry[]> {
+  return readJsonSidecar<CommentEntry>(slug, 'comments.json');
+}
+
+export async function appendComment(
+  slug: string,
+  comment: Omit<CommentEntry, 'id' | 'ts' | 'read_by_agent' | 'read_by_vendor'>
+): Promise<CommentEntry> {
+  const items = await readComments(slug);
+  const entry: CommentEntry = {
+    id: randomId(),
+    ts: new Date().toISOString(),
+    author: comment.author,
+    body: comment.body,
+    read_by_agent: comment.author === 'agent',
+    read_by_vendor: comment.author === 'vendor',
+  };
+  items.push(entry);
+  await writeJsonSidecar(slug, 'comments.json', items);
+  return entry;
+}
+
+export interface TimelineEntry {
+  id: string;
+  ts: string;
+  source: ActivitySource;
+  actor: string;
+  summary: string;
+  body?: string;
+}
+
+export async function getUnifiedTimeline(slug: string, opts: { limit?: number } = {}): Promise<TimelineEntry[]> {
+  const [activity, comments] = await Promise.all([readActivity(slug), readComments(slug)]);
+
+  const out: TimelineEntry[] = [];
+  for (const a of activity) {
+    out.push({ id: a.id, ts: a.ts, source: a.source, actor: a.actor, summary: a.summary });
+  }
+  for (const c of comments) {
+    out.push({
+      id: c.id,
+      ts: c.ts,
+      source: 'comment',
+      actor: c.author === 'agent' ? 'Agent' : 'You',
+      summary: c.body.slice(0, 140),
+      body: c.body,
+    });
+  }
+
+  out.sort((a, b) => b.ts.localeCompare(a.ts));
+  return opts.limit ? out.slice(0, opts.limit) : out;
+}

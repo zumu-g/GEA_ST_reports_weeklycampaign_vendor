@@ -4,6 +4,11 @@ export const CLICKUP_LIST_IDS: Record<string, string> = {
   // '9-calibar-ct-clyde-north': '' — add list ID once ClickUp list is created
 };
 
+export function getSlugForListId(listId: string): string | null {
+  const entry = Object.entries(CLICKUP_LIST_IDS).find(([, id]) => id === listId);
+  return entry ? entry[0] : null;
+}
+
 export interface CampaignTask {
   id: string;
   name: string;

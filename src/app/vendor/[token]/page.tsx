@@ -6,6 +6,8 @@ import CampaignChecklist from '@/components/vendor/CampaignChecklist';
 import AppointmentCalendar from '@/components/vendor/AppointmentCalendar';
 import CampaignTimeline from '@/components/vendor/CampaignTimeline';
 import CommunicationsLog from '@/components/vendor/CommunicationsLog';
+import ActivityFeed from '@/components/vendor/ActivityFeed';
+import CommentThread from '@/components/vendor/CommentThread';
 import MarketNews from '@/components/vendor/MarketNews';
 import DownloadButton from '@/components/vendor/DownloadButton';
 import InspectionHistory from '@/components/InspectionHistory';
@@ -13,11 +15,13 @@ import DailyQuote from '@/components/vendor/DailyQuote';
 import TrendBadge from '@/components/vendor/TrendBadge';
 import { getDailyQuote } from '@/lib/quotes';
 
-function calcDaysOnMarket(listed: string): number {
+function calcDaysOnMarket(listed: string, weekEnding?: string): number {
   if (!listed) return 0;
   const parsed = new Date(listed);
   if (isNaN(parsed.getTime())) return 0;
-  return Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 86_400_000));
+  const ref = weekEnding ? new Date(weekEnding) : new Date();
+  const refMs = isNaN(ref.getTime()) ? Date.now() : ref.getTime();
+  return Math.max(0, Math.floor((refMs - parsed.getTime()) / 86_400_000));
 }
 
 function sumAnalytics(analytics: { reaViews: number; reaEnquiries: number; reaSaves: number; domainViews: number; domainEnquiries: number; domainSaves: number }[]) {
@@ -46,9 +50,9 @@ export default async function VendorDashboard({
   const property = await getProperty(slug);
   if (!property) notFound();
 
-  const daysOnMarket = calcDaysOnMarket(property.listed);
   const totals = sumAnalytics(property.analytics);
   const latestAnalytics = property.analytics[0] ?? null;
+  const daysOnMarket = calcDaysOnMarket(property.listed, latestAnalytics?.weekEnding);
   const previousAnalytics = property.analytics[1] ?? null;
 
   const reportDate = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -123,6 +127,9 @@ export default async function VendorDashboard({
             </div>
           </div>
         </section>
+
+        {/* ── Recent Activity ──────────────────────────────── */}
+        <ActivityFeed slug={property.slug} />
 
         {/* ── Latest Update ────────────────────────────────── */}
         {property.latestUpdate && (
@@ -303,12 +310,15 @@ export default async function VendorDashboard({
         {/* ── Campaign Checklist ───────────────────────────── */}
         {property.checklist.length > 0 && (
           <div data-tour="checklist">
-            <CampaignChecklist items={property.checklist} />
+            <CampaignChecklist items={property.checklist} storageKey={`gea:checklist:${property.slug}`} />
           </div>
         )}
 
         {/* ── Communications ───────────────────────────────── */}
         <CommunicationsLog communications={property.communications} />
+
+        {/* ── Two-way Messages ─────────────────────────────── */}
+        <CommentThread token={token} />
 
         {/* ── Market News ──────────────────────────────────── */}
         <MarketNews news={property.news} />

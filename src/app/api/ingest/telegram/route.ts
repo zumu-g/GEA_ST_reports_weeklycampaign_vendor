@@ -1,6 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveProperty } from '@/lib/property-registry';
-import { writeInspectionFile } from '@/lib/markdown-loader';
+import { writeInspectionFile, appendActivity } from '@/lib/markdown-loader';
+
+// Splits "85 Centenary | note: spoke to buyer" or "#feed 85 Centenary spoke to buyer"
+// into { propertyText, note } if it is a free-form note rather than an inspection.
+function parseFreeformNote(message: string): { propertyText: string; note: string; sender?: string } | null {
+  const feedTag = message.match(/^\s*#feed\s+(.+)$/i);
+  if (feedTag) {
+    const rest = feedTag[1].trim();
+    // First 2-3 words are the property keyword
+    const m = rest.match(/^(\S+(?:\s+\S+){0,2})\s+(.+)$/);
+    if (!m) return null;
+    return { propertyText: m[1], note: m[2].trim() };
+  }
+
+  // Pipe form: "85 Centenary | note: ..."
+  if (message.includes('|')) {
+    const parts = message.split('|').map(p => p.trim());
+    if (parts.length >= 2 && /^note\s*:/i.test(parts[1])) {
+      const note = parts[1].replace(/^note\s*:\s*/i, '');
+      const extra = parts.slice(2).join(' | ').trim();
+      return { propertyText: parts[0], note: extra ? `${note} — ${extra}` : note };
+    }
+  }
+
+  // Colon form: "85 Centenary: note: ..."
+  const colonMatch = message.match(/^([^:]+):\s*note\s*:\s*(.+)$/i);
+  if (colonMatch) {
+    return { propertyText: colonMatch[1].trim(), note: colonMatch[2].trim() };
+  }
+
+  return null;
+}
 
 // Parses telegram shorthand:
 // "85 Centenary | open | 3 groups | 1 interested | felt overpriced"
@@ -89,6 +120,30 @@ export async function POST(request: NextRequest) {
 
     if (!message) {
       return NextResponse.json({ error: 'Missing message field' }, { status: 400 });
+    }
+
+    // Free-form note path — write to activity feed, not inspection log
+    const note = parseFreeformNote(message);
+    if (note) {
+      const property = resolveProperty(note.propertyText);
+      if (!property) {
+        return NextResponse.json(
+          { error: 'Could not match property', searched: note.propertyText },
+          { status: 404 }
+        );
+      }
+      const entry = await appendActivity(property.slug, {
+        source: 'telegram',
+        actor: body.sender || 'Agent',
+        summary: note.note,
+      });
+      return NextResponse.json({
+        success: true,
+        kind: 'note',
+        property: property.address,
+        slug: property.slug,
+        entry,
+      });
     }
 
     const parsed = parseTelegramMessage(message);
