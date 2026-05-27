@@ -4,15 +4,20 @@ import { getProperty } from '@/lib/markdown-loader';
 import VendorHeader from '@/components/vendor/VendorHeader';
 import CampaignChecklist from '@/components/vendor/CampaignChecklist';
 import AppointmentCalendar from '@/components/vendor/AppointmentCalendar';
+import UpcomingOpens from '@/components/vendor/UpcomingOpens';
 import CampaignTimeline from '@/components/vendor/CampaignTimeline';
 import CommunicationsLog from '@/components/vendor/CommunicationsLog';
 import ActivityFeed from '@/components/vendor/ActivityFeed';
+import ActivityTicker from '@/components/vendor/ActivityTicker';
+import LiveStatsTile from '@/components/vendor/LiveStatsTile';
 import CommentThread from '@/components/vendor/CommentThread';
 import MarketNews from '@/components/vendor/MarketNews';
 import DownloadButton from '@/components/vendor/DownloadButton';
 import InspectionHistory from '@/components/InspectionHistory';
+import SectionHeading from '@/components/SectionHeading';
 import DailyQuote from '@/components/vendor/DailyQuote';
 import TrendBadge from '@/components/vendor/TrendBadge';
+import WeeklyTrend from '@/components/vendor/WeeklyTrend';
 import { getDailyQuote } from '@/lib/quotes';
 
 function calcDaysOnMarket(listed: string, weekEnding?: string): number {
@@ -58,9 +63,18 @@ export default async function VendorDashboard({
   const reportDate = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
   const dailyQuote = getDailyQuote();
 
+  // Masthead: split "85 Centenary Boulevard, Officer South VIC 3809" into a big
+  // street headline and a quieter locality line.
+  const [heroStreet, ...heroRest] = property.address.split(',');
+  const heroLocality = heroRest.join(',').trim();
+
   return (
     <div className="min-h-screen bg-background">
-      <VendorHeader address={property.address} daysOnMarket={daysOnMarket} />
+      <VendorHeader address={property.address} daysOnMarket={daysOnMarket} token={token} />
+
+      <div className="max-w-2xl mx-auto px-5 pt-4 print:hidden">
+        <ActivityTicker slug={property.slug} />
+      </div>
 
       {/* Print-only header */}
       <div className="hidden print:block px-5 pt-6 pb-6 border-b border-border max-w-2xl mx-auto">
@@ -92,54 +106,64 @@ export default async function VendorDashboard({
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-5 pt-10 pb-16">
+      <main className="reveal max-w-2xl mx-auto px-5 pt-10 pb-16">
 
-        {/* ── Hero ─────────────────────────────────────────── */}
+        {/* ── Hero / masthead ──────────────────────────────── */}
         <section className="mb-12">
-          <div className="flex items-start justify-between gap-4 mb-1">
-            <h1 className="font-display text-3xl font-medium text-foreground leading-tight">
-              {property.address}
-            </h1>
-            <div className="flex-shrink-0 pt-1">
+          <div className="flex items-start justify-between gap-4">
+            <p className="eyebrow pt-2">{property.campaignType || 'Campaign'}</p>
+            <div className="flex-shrink-0">
               <DownloadButton />
             </div>
           </div>
-          {property.owner && (
-            <p className="font-body text-xs text-muted mb-1">For {property.owner} · Private &amp; Confidential</p>
+          <h1
+            className="font-display font-medium text-foreground tracking-[-0.015em] mt-3"
+            style={{ fontSize: 'clamp(2.5rem, 7vw, 4.25rem)', lineHeight: 1.02 }}
+          >
+            {heroStreet}
+          </h1>
+          {heroLocality && (
+            <p className="font-body text-base sm:text-lg text-muted mt-2">{heroLocality}</p>
           )}
-          <p className="font-body text-sm text-muted mb-8">
-            {property.campaignType} · Listed {property.listed}
-          </p>
+          {/* Signature short gold hairline */}
+          <div className="h-px w-14 bg-accent mt-6" aria-hidden="true" />
+          {property.owner && (
+            <p className="font-body text-xs text-muted mt-6">
+              For {property.owner} · Private &amp; Confidential · Listed {property.listed}
+            </p>
+          )}
 
-          {/* Key facts row */}
-          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-border">
-            <div>
-              <p className="font-body text-[10px] text-muted uppercase tracking-widest mb-1">Price Guide</p>
-              <p className="font-display text-xl font-medium text-foreground">{property.priceGuide || 'TBC'}</p>
+          {/* Key facts row — price takes a full-width row on narrow phones, all three inline from ~420px */}
+          <div className="grid grid-cols-2 min-[420px]:grid-cols-3 gap-x-4 gap-y-5 pt-6 border-t border-border">
+            <div className="col-span-2 min-[420px]:col-span-1">
+              <p className="eyebrow mb-1">Price Guide</p>
+              <p className="font-mono text-xl font-medium text-foreground tabular-nums">{property.priceGuide || 'TBC'}</p>
             </div>
             <div>
-              <p className="font-body text-[10px] text-muted uppercase tracking-widest mb-1">Agent</p>
+              <p className="eyebrow mb-1">Agent</p>
               <p className="font-body text-sm font-medium text-foreground">{property.agent || 'Stuart Grant'}</p>
             </div>
             <div>
-              <p className="font-body text-[10px] text-muted uppercase tracking-widest mb-1">Days on market</p>
+              <p className="eyebrow mb-1">Days on market</p>
               <p className="font-mono text-sm font-medium text-foreground tabular-nums">{daysOnMarket > 0 ? daysOnMarket : '—'}</p>
             </div>
           </div>
         </section>
 
         {/* ── Recent Activity ──────────────────────────────── */}
+        <LiveStatsTile slug={property.slug} listed={property.listed} />
+
         <ActivityFeed slug={property.slug} />
 
         {/* ── Latest Update ────────────────────────────────── */}
         {property.latestUpdate && (
           <section className="mb-10" data-tour="latest-update">
-            <div className="bg-accent/12 rounded-2xl px-5 py-5">
+            <div className="bg-accent/12 rounded-lg px-5 py-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-body text-[10px] text-accent font-semibold uppercase tracking-widest">Update from Your Agent</p>
                 <p className="font-body text-[10px] text-muted">{reportDate}</p>
               </div>
-              <p className="font-body text-base text-foreground leading-relaxed">{property.latestUpdate}</p>
+              <p className="font-body text-base text-foreground leading-relaxed max-w-[65ch]">{property.latestUpdate}</p>
               <p className="font-body text-xs text-muted mt-3">{property.agent || 'Stuart Grant'}</p>
             </div>
           </section>
@@ -152,13 +176,16 @@ export default async function VendorDashboard({
 
         {property.inspections.length === 0 && (
           <section className="mb-10">
-            <h2 className="font-display text-xl font-medium text-foreground mb-4">Inspections</h2>
+            <SectionHeading label="Inspections" count={0} />
             <div className="bg-card-bg rounded border border-border px-6 py-10 text-center">
               <p className="font-body text-sm text-foreground mb-1">No inspections scheduled yet.</p>
               <p className="font-body text-xs text-muted">Your agent will update this as inspections are confirmed.</p>
             </div>
           </section>
         )}
+
+        {/* ── Upcoming Opens (from ClickUp) ─────────────────── */}
+        <UpcomingOpens slug={property.slug} />
 
         {/* ── Upcoming Appointments ────────────────────────── */}
         <div data-tour="appointments">
@@ -168,12 +195,10 @@ export default async function VendorDashboard({
         {/* ── Campaign Analytics ───────────────────────────── */}
         {property.analytics.length > 0 && (
           <section className="mb-12" data-tour="analytics">
-            <div className="flex items-baseline justify-between mb-6">
-              <h2 className="font-display text-xl font-medium text-foreground">Online Reach</h2>
-              {latestAnalytics && (
-                <p className="font-body text-xs text-muted">Week ending {latestAnalytics.weekEnding}</p>
-              )}
-            </div>
+            <SectionHeading
+              label="Online Reach"
+              meta={latestAnalytics ? <span className="font-body text-xs text-muted">Week ending {latestAnalytics.weekEnding}</span> : undefined}
+            />
 
             {/* Campaign totals */}
             <div className="grid grid-cols-3 gap-4 sm:gap-8 mb-8 pb-8 border-b border-border">
@@ -275,7 +300,6 @@ export default async function VendorDashboard({
                 },
               ].map(portal => (
                 <div key={portal.name} className="bg-card-bg rounded border border-border overflow-hidden">
-                  <div className={`h-0.5 w-full ${portal.color}`} />
                   <div className="p-5">
                     <div className="flex items-center gap-2 mb-5">
                       <span className={`w-2 h-2 rounded-full ${portal.color} flex-shrink-0`} />
@@ -303,6 +327,9 @@ export default async function VendorDashboard({
             </div>
           </section>
         )}
+
+        {/* ── Weekly Trend ─────────────────────────────────── */}
+        <WeeklyTrend analytics={property.analytics} />
 
         {/* ── What's Next ──────────────────────────────────── */}
         <CampaignTimeline slug={property.slug} />

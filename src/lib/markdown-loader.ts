@@ -562,6 +562,181 @@ async function appendToPropertyTable(
   }
 }
 
+// --- Stats sidecar (denormalised weekly snapshots from REA/Domain) ---
+
+export interface StatsRow {
+  weekEnding: string;
+  source: string; // 'rea' | 'domain'
+  views: number;
+  enquiries: number;
+  saves: number;
+}
+
+export async function readStats(slug: string): Promise<StatsRow[]> {
+  return readJsonSidecar<StatsRow>(slug, 'stats.json');
+}
+
+export async function upsertStats(slug: string, row: StatsRow): Promise<void> {
+  const items = await readStats(slug);
+  const src = row.source.toLowerCase();
+  const idx = items.findIndex(
+    s => s.weekEnding === row.weekEnding && s.source.toLowerCase() === src,
+  );
+  const normalised: StatsRow = { ...row, source: src };
+  if (idx >= 0) items[idx] = normalised;
+  else items.push(normalised);
+  items.sort((a, b) => (a.weekEnding < b.weekEnding ? 1 : -1));
+  await writeJsonSidecar(slug, 'stats.json', items);
+}
+
+export interface LiveStats {
+  reaViews: number; reaEnquiries: number;
+  domainViews: number; domainEnquiries: number;
+  reaViewsDelta: number; reaEnquiriesDelta: number;
+  domainViewsDelta: number; domainEnquiriesDelta: number;
+  weekEnding: string | null;
+}
+
+export async function getLiveStats(slug: string): Promise<LiveStats | null> {
+  const rows = await readStats(slug);
+  if (!rows.length) return null;
+  const weeks = Array.from(new Set(rows.map(r => r.weekEnding))).sort().reverse();
+  const [w0, w1] = weeks;
+  const pick = (we: string | undefined, src: string) =>
+    rows.find(r => r.weekEnding === we && r.source.toLowerCase() === src);
+  const r0 = pick(w0, 'rea'); const d0 = pick(w0, 'domain');
+  const r1 = pick(w1, 'rea'); const d1 = pick(w1, 'domain');
+  return {
+    reaViews: r0?.views ?? 0,
+    reaEnquiries: r0?.enquiries ?? 0,
+    domainViews: d0?.views ?? 0,
+    domainEnquiries: d0?.enquiries ?? 0,
+    reaViewsDelta: (r0?.views ?? 0) - (r1?.views ?? 0),
+    reaEnquiriesDelta: (r0?.enquiries ?? 0) - (r1?.enquiries ?? 0),
+    domainViewsDelta: (d0?.views ?? 0) - (d1?.views ?? 0),
+    domainEnquiriesDelta: (d0?.enquiries ?? 0) - (d1?.enquiries ?? 0),
+    weekEnding: w0 ?? null,
+  };
+}
+
+// --- Opens sidecar ---
+
+export interface OpenEntry {
+  id: string;
+  start: string; // ISO
+  end: string;   // ISO
+  source: 'clickup' | 'manual';
+  note?: string;
+}
+
+export async function readOpens(slug: string): Promise<OpenEntry[]> {
+  return readJsonSidecar<OpenEntry>(slug, 'opens.json');
+}
+
+export async function upsertOpen(slug: string, entry: OpenEntry): Promise<void> {
+  const items = await readOpens(slug);
+  const idx = items.findIndex(o => o.id === entry.id);
+  if (idx >= 0) items[idx] = entry;
+  else items.push(entry);
+  await writeJsonSidecar(slug, 'opens.json', items);
+}
+
+export async function removeOpen(slug: string, id: string): Promise<void> {
+  const items = await readOpens(slug);
+  const filtered = items.filter(o => o.id !== id);
+  if (filtered.length !== items.length) {
+    await writeJsonSidecar(slug, 'opens.json', filtered);
+  }
+}
+
+// --- Checklist writer ---
+
+function normaliseLabel(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const dp: number[] = Array(b.length + 1).fill(0).map((_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1]
+        ? prev
+        : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = tmp;
+    }
+  }
+  return dp[b.length];
+}
+
+/**
+ * Find the Campaign Checklist line that best matches `label` and flip its
+ * checkbox to `done`. If no line matches within Levenshtein 3 (on normalised
+ * text), append a new item to the end of the checklist so nothing is silently
+ * dropped. Returns true if the file was modified.
+ */
+export async function setChecklistItem(
+  slug: string,
+  label: string,
+  done: boolean,
+): Promise<boolean> {
+  const propertyPath = path.join(PROPERTIES_DIR, slug, 'PROPERTY.md');
+  let content: string;
+  try {
+    content = await fs.readFile(propertyPath, 'utf-8');
+  } catch {
+    return false;
+  }
+
+  const sectionStart = content.indexOf('## Campaign Checklist');
+  if (sectionStart === -1) return false;
+  const sectionRelEnd = content.slice(sectionStart).search(/\n## /);
+  const sectionEnd = sectionRelEnd === -1 ? content.length : sectionStart + sectionRelEnd;
+  const section = content.slice(sectionStart, sectionEnd);
+
+  const lines = section.split('\n');
+  const target = normaliseLabel(label);
+  let bestIdx = -1;
+  let bestScore = Infinity;
+  const itemRegex = /^- \[(x| )\] (.+)$/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(itemRegex);
+    if (!m) continue;
+    const candidate = normaliseLabel(m[2]);
+    if (candidate === target) { bestIdx = i; bestScore = 0; break; }
+    const dist = levenshtein(target, candidate);
+    if (dist < bestScore) { bestScore = dist; bestIdx = i; }
+  }
+
+  let newSection: string;
+  if (bestIdx !== -1 && bestScore <= 3) {
+    const m = lines[bestIdx].match(itemRegex)!;
+    const mark = done ? 'x' : ' ';
+    if (m[1] === mark) return false;
+    lines[bestIdx] = `- [${mark}] ${m[2]}`;
+    newSection = lines.join('\n');
+  } else {
+    let lastItem = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (itemRegex.test(lines[i])) lastItem = i;
+    }
+    const insertAt = lastItem === -1 ? lines.length : lastItem + 1;
+    lines.splice(insertAt, 0, `- [${done ? 'x' : ' '}] ${label}`);
+    newSection = lines.join('\n');
+  }
+
+  const newContent = content.slice(0, sectionStart) + newSection + content.slice(sectionEnd);
+  if (newContent === content) return false;
+  await fs.writeFile(propertyPath, newContent, 'utf-8');
+  return true;
+}
+
 // --- Activity feed + comments (JSON sidecars) ---
 
 export type ActivitySource = 'clickup' | 'telegram' | 'analytics' | 'inspection' | 'comment';
@@ -679,4 +854,43 @@ export async function getUnifiedTimeline(slug: string, opts: { limit?: number } 
 
   out.sort((a, b) => b.ts.localeCompare(a.ts));
   return opts.limit ? out.slice(0, opts.limit) : out;
+}
+
+// --- Outbound notification queue (drained by scripts/dispatch_notifications.py) ---
+
+export interface OutboundNotification {
+  id: string;
+  channel: 'email' | 'sms' | 'both';
+  to: { email?: string; phone?: string };
+  vendor?: string;
+  slug?: string;
+  subject?: string;
+  body: string;
+  portalUrl?: string;
+  created_at: string;
+}
+
+/**
+ * Queue a vendor notification by writing a JSON file into `_outbound/`.
+ * The Python dispatcher (cron, every 5 min) picks it up and sends via
+ * Resend (email) and/or Twilio (SMS), then archives it to `_outbound/sent/`.
+ */
+export async function enqueueNotification(
+  n: Omit<OutboundNotification, 'id' | 'created_at'> & { id?: string; created_at?: string },
+): Promise<OutboundNotification> {
+  const entry: OutboundNotification = {
+    id: n.id || randomId(),
+    channel: n.channel,
+    to: n.to,
+    vendor: n.vendor,
+    slug: n.slug,
+    subject: n.subject,
+    body: n.body,
+    portalUrl: n.portalUrl,
+    created_at: n.created_at || new Date().toISOString(),
+  };
+  const dir = path.join(PROPERTIES_DIR, '_outbound');
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, `${entry.id}.json`), JSON.stringify(entry, null, 2) + '\n', 'utf-8');
+  return entry;
 }

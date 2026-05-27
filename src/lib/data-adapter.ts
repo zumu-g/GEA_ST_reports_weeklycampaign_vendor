@@ -19,10 +19,11 @@ export function propertyToVendorReport(property: PropertyData): VendorReport {
   const totalOpenGroups = openInspections.reduce((sum, i) => sum + i.groups, 0);
   const totalPrivateGroups = privateInspections.reduce((sum, i) => sum + i.groups, 0);
 
-  // Calculate days on market
+  // Calculate days on market — from listed date to the latest report's week-ending date
   const listedDate = property.listed ? new Date(property.listed) : new Date();
+  const referenceDate = latest?.weekEnding ? new Date(latest.weekEnding) : new Date();
   const daysOnMarket = Math.floor(
-    (Date.now() - listedDate.getTime()) / (1000 * 60 * 60 * 24)
+    (referenceDate.getTime() - listedDate.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   return {

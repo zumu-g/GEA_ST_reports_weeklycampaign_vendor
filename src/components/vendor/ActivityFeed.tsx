@@ -1,4 +1,5 @@
 import { getUnifiedTimeline, TimelineEntry } from '@/lib/markdown-loader';
+import SectionHeading from '@/components/SectionHeading';
 
 const sourceLabels: Record<TimelineEntry['source'], { label: string; dot: string }> = {
   clickup: { label: 'Campaign', dot: 'bg-blue-500' },
@@ -26,7 +27,7 @@ export default async function ActivityFeed({ slug }: { slug: string }) {
 
   return (
     <section className="mb-12">
-      <h2 className="font-display text-xl font-medium text-foreground mb-4">Recent Activity</h2>
+      <SectionHeading label="Recent Activity" count={entries.length} />
       <ol className="bg-card-bg rounded border border-border divide-y divide-border">
         {entries.map(e => {
           const meta = sourceLabels[e.source];

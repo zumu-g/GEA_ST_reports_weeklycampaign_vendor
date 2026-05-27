@@ -1,3 +1,5 @@
+import SectionHeading from '@/components/SectionHeading';
+
 interface AppointmentCalendarProps {
   calendarId: string;
 }
@@ -10,7 +12,7 @@ export default function AppointmentCalendar({ calendarId }: AppointmentCalendarP
 
   return (
     <section className="mb-8">
-      <h2 className="font-display text-xl font-medium text-foreground mb-4">Upcoming Appointments</h2>
+      <SectionHeading label="Upcoming Appointments" />
       <div className="bg-card-bg rounded border border-border overflow-hidden">
         <iframe
           src={src}

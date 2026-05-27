@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeAnalyticsFile } from '@/lib/markdown-loader';
+import { writeAnalyticsFile, upsertStats } from '@/lib/markdown-loader';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +20,14 @@ export async function POST(request: NextRequest) {
       enquiries: Number(enquiries) || 0,
       saves: Number(saves) || 0,
       searchAppearances: Number(searchAppearances) || 0,
+    });
+
+    await upsertStats(property, {
+      weekEnding,
+      source,
+      views: Number(views) || 0,
+      enquiries: Number(enquiries) || 0,
+      saves: Number(saves) || 0,
     });
 
     return NextResponse.json({

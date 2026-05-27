@@ -122,7 +122,7 @@ export interface GenerateReportInput {
 
 export interface StatRow {
   label: string;
-  actual: number;
+  actual: number | null;
   target: number | null;
 }
 

@@ -8,14 +8,17 @@ import CommunicationsLog from '@/components/vendor/CommunicationsLog';
 import MarketNews from '@/components/vendor/MarketNews';
 import DownloadButton from '@/components/vendor/DownloadButton';
 import InspectionHistory from '@/components/InspectionHistory';
+import SectionHeading from '@/components/SectionHeading';
 import StatCard from '@/components/StatCard';
 import type { RentalAnalyticsRow } from '@/lib/types';
 
-function calcDaysListed(listed: string): number {
+function calcDaysListed(listed: string, weekEnding?: string): number {
   if (!listed) return 0;
   const parsed = new Date(listed);
   if (isNaN(parsed.getTime())) return 0;
-  return Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 86_400_000));
+  const ref = weekEnding ? new Date(weekEnding) : new Date();
+  const refMs = isNaN(ref.getTime()) ? Date.now() : ref.getTime();
+  return Math.max(0, Math.floor((refMs - parsed.getTime()) / 86_400_000));
 }
 
 function sumAnalytics(analytics: RentalAnalyticsRow[]) {
@@ -45,9 +48,9 @@ export default async function LandlordDashboard({
   const property = await getRental(slug);
   if (!property) notFound();
 
-  const daysListed = calcDaysListed(property.listed);
   const totals = sumAnalytics(property.analytics);
   const latestAnalytics = property.analytics[0] ?? null;
+  const daysListed = calcDaysListed(property.listed, latestAnalytics?.weekEnding);
   const reportDate = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
@@ -60,7 +63,7 @@ export default async function LandlordDashboard({
         <p className="font-body text-xs text-muted mt-0.5">Weekly Rental Report · {reportDate}</p>
       </div>
 
-      <main className="max-w-2xl mx-auto px-5 py-8">
+      <main className="reveal max-w-2xl mx-auto px-5 py-8">
 
         {/* Hero */}
         <section className="mb-8">
@@ -76,8 +79,8 @@ export default async function LandlordDashboard({
 
           <div className="bg-card-bg rounded border border-border p-5 flex flex-wrap gap-5">
             <div>
-              <p className="font-body text-xs text-muted mb-0.5">Weekly Rent</p>
-              <p className="font-display text-lg font-medium text-foreground">{property.rentPw || 'TBC'}</p>
+              <p className="eyebrow mb-1">Weekly Rent</p>
+              <p className="font-mono text-lg font-medium text-foreground tabular-nums">{property.rentPw || 'TBC'}</p>
             </div>
             <div className="w-px bg-border self-stretch" />
             <div>
@@ -95,8 +98,8 @@ export default async function LandlordDashboard({
         {/* Latest Update */}
         {property.latestUpdate && (
           <section className="mb-8">
-            <div className="bg-accent/10 border border-accent/30 rounded-[14px] px-5 py-4">
-              <p className="font-body text-xs text-accent font-medium mb-1 uppercase tracking-wide">Latest Update</p>
+            <div className="bg-accent/10 border border-border rounded-md px-5 py-4">
+              <p className="eyebrow mb-1.5">Latest Update</p>
               <p className="font-body text-sm text-foreground leading-relaxed">{property.latestUpdate}</p>
             </div>
           </section>
@@ -104,7 +107,7 @@ export default async function LandlordDashboard({
 
         {/* Campaign Checklist */}
         {property.checklist.length > 0 && (
-          <CampaignChecklist items={property.checklist} />
+          <CampaignChecklist items={property.checklist} storageKey={`gea:checklist:${property.slug}`} />
         )}
 
         {/* What's Next — ClickUp tasks tagged vendor */}
@@ -113,12 +116,10 @@ export default async function LandlordDashboard({
         {/* Analytics */}
         {property.analytics.length > 0 && (
           <section className="mb-8">
-            <div className="flex items-baseline justify-between mb-4">
-              <h2 className="font-display text-xl font-medium text-foreground">Listing Analytics</h2>
-              {latestAnalytics && (
-                <p className="font-body text-xs text-muted">w/e {latestAnalytics.weekEnding}</p>
-              )}
-            </div>
+            <SectionHeading
+              label="Listing Analytics"
+              meta={latestAnalytics ? <span className="font-body text-xs text-muted">w/e {latestAnalytics.weekEnding}</span> : undefined}
+            />
 
             {/* Summary stats */}
             <div className="grid grid-cols-3 gap-3 mb-5">
@@ -140,7 +141,6 @@ export default async function LandlordDashboard({
             {/* Per-portal breakdown */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-card-bg rounded border border-border overflow-hidden">
-                <div className="h-0.5 w-full bg-red-500" />
                 <div className="p-5">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
@@ -152,7 +152,7 @@ export default async function LandlordDashboard({
                       { label: 'Enquiries', value: totals.reaEnquiries },
                       { label: 'Saves', value: totals.reaSaves },
                     ].map(s => (
-                      <div key={s.label} className="bg-background rounded-xl p-3">
+                      <div key={s.label} className="bg-background rounded-md p-3">
                         <p className="font-mono text-xl font-medium tabular-nums text-foreground">{s.value.toLocaleString()}</p>
                         <p className="font-body text-xs text-muted mt-0.5">{s.label}</p>
                       </div>
@@ -162,7 +162,6 @@ export default async function LandlordDashboard({
               </div>
 
               <div className="bg-card-bg rounded border border-border overflow-hidden">
-                <div className="h-0.5 w-full bg-emerald-500" />
                 <div className="p-5">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
@@ -174,7 +173,7 @@ export default async function LandlordDashboard({
                       { label: 'Enquiries', value: totals.domainEnquiries },
                       { label: 'Saves', value: totals.domainSaves },
                     ].map(s => (
-                      <div key={s.label} className="bg-background rounded-xl p-3">
+                      <div key={s.label} className="bg-background rounded-md p-3">
                         <p className="font-mono text-xl font-medium tabular-nums text-foreground">{s.value.toLocaleString()}</p>
                         <p className="font-body text-xs text-muted mt-0.5">{s.label}</p>
                       </div>
@@ -196,7 +195,7 @@ export default async function LandlordDashboard({
 
         {property.inspections.length === 0 && (
           <section className="mb-8">
-            <h2 className="font-display text-xl font-medium text-foreground mb-4">Inspections</h2>
+            <SectionHeading label="Inspections" count={0} />
             <div className="bg-card-bg rounded border border-border px-6 py-8 text-center">
               <p className="font-body text-sm text-muted">No inspections logged yet.</p>
             </div>
