@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { CampaignTask } from '@/lib/clickup-config';
+import SectionHeading from '@/components/SectionHeading';
 
 interface CampaignTimelineProps {
   slug: string;
@@ -48,7 +49,7 @@ export default function CampaignTimeline({ slug }: CampaignTimelineProps) {
 
   return (
     <section className="mb-8">
-      <h2 className="font-display text-xl font-medium text-foreground mb-4">What&apos;s Next</h2>
+      <SectionHeading label="What's Next" count={tasks.length} />
       <ul className="bg-card-bg rounded border border-border overflow-hidden">
         {tasks.map((task, i) => {
           const label = formatDueDate(task.dueDate);

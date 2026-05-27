@@ -1,25 +1,24 @@
-@import url("https://fonts.googleapis.com/css2?family=Gloock&family=Hanken+Grotesk:wght@300;400;500;600&family=Fira+Mono:wght@400;500&display=swap");
-
 @import "tailwindcss";
 
+/* Warm Editorial Studio tokens — see DESIGN.md. Fonts are supplied by
+   next/font (layout.tsx) as --font-display / --font-body / --font-mono. */
 :root {
-  --background:    #FAF8F4;
-  --foreground:    #1A1814;
-  --primary:       #1A1814;
+  --background:    #FAF8F4; /* paper */
+  --foreground:    #1A1814; /* ink */
+  --primary:       #1A1814; /* alias of ink, kept for existing consumers */
   --primary-light: #2C2823;
   --surface:       #F2EEE8;
-  --border:        #E0DBD4;
-  --muted:         #716D69;
+  --border:        #E0DBD4; /* rule */
+  --muted:         #8B8580;
   --accent:        #C8A96E;
-  --accent-light:  #E8D4A8;
-  --card-bg:       #FFFFFF;
+  --accent-soft:   #E8D4A8;
+  --accent-light:  var(--accent-soft); /* back-compat alias for existing consumers */
+  --card-bg:       #FAF8F4; /* paper — never pure #fff per spec */
+  /* Non-spec status extensions (DESIGN.md prefers cool-toned status;
+     retuning is out of scope). */
   --success:       #1A5C42;
   --warning:       #B67A00;
   --danger:        #B64400;
-
-  --font-display: 'Gloock', Georgia, serif;
-  --font-body:    'Hanken Grotesk', system-ui, sans-serif;
-  --font-mono:    'Fira Mono', monospace;
 }
 
 @theme inline {
@@ -32,6 +31,7 @@
   --color-muted:        var(--muted);
   --color-accent:       var(--accent);
   --color-accent-light: var(--accent-light);
+  --color-accent-soft:  var(--accent-soft);
   --color-card-bg:      var(--card-bg);
   --color-success:      var(--success);
   --color-warning:      var(--warning);
@@ -40,6 +40,10 @@
   --font-display: var(--font-display);
   --font-body:    var(--font-body);
   --font-mono:    var(--font-mono);
+
+  /* Spec radii (Tailwind defaults differ: rounded-lg defaults to 8px). */
+  --radius-md: 12px;
+  --radius-lg: 16px;
 
   --animate-accent-expand: accent-expand 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
   --animate-fade-up: fade-up 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
@@ -55,6 +59,25 @@
     from { opacity: 0; transform: translateY(5px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+
+  /* One orchestrated page-load reveal: staggered fade-ups of a container's
+     direct children. Lives inside the no-preference guard, so reduced-motion
+     users get full-opacity static content with no animation. */
+  .reveal > * {
+    animation: fade-up 0.3s ease-out both;
+  }
+  .reveal > *:nth-child(1) { animation-delay: 0ms; }
+  .reveal > *:nth-child(2) { animation-delay: 40ms; }
+  .reveal > *:nth-child(3) { animation-delay: 80ms; }
+  .reveal > *:nth-child(4) { animation-delay: 120ms; }
+  .reveal > *:nth-child(5) { animation-delay: 160ms; }
+  .reveal > *:nth-child(6) { animation-delay: 200ms; }
+  .reveal > *:nth-child(7) { animation-delay: 240ms; }
+  .reveal > *:nth-child(n+8) { animation-delay: 280ms; }
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -64,6 +87,48 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+::selection {
+  background: var(--accent-soft);
+  color: var(--foreground);
+}
+
+/* Figures always render with tabular (monospaced) numerals */
+.font-mono {
+  font-feature-settings: "tnum" 1;
+}
+
+/* Signature editorial patterns */
+@layer components {
+  /* Uppercase eyebrow — short label-caps in muted above headings / as status markers */
+  .eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.8125rem; /* 13px */
+    font-weight: 600;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  /* Hairline-anchored section heading: eyebrow on the left, optional mono count on the
+     right, sitting on a 1px rule baseline. */
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-head__count {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-feature-settings: "tnum" 1;
+    color: var(--muted);
+  }
+}
+
 @media print {
   * {
     -webkit-print-color-adjust: exact;
@@ -71,7 +136,7 @@ body {
   }
 
   body {
-    background: #fff !important;
+    background: #FAF8F4 !important;
     color: #1A1814 !important;
   }
 

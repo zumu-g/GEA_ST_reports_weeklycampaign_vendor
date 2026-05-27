@@ -1,3 +1,5 @@
+import SectionHeading from './SectionHeading';
+
 interface InspectionRow {
   date: string;
   type: string;
@@ -27,9 +29,7 @@ function typeBadgeClasses(type: string): string {
 export default function InspectionHistory({ inspections }: InspectionHistoryProps) {
   return (
     <div className="mb-8">
-      <h2 className="font-display text-xl font-medium text-foreground mb-4">
-        Inspections
-      </h2>
+      <SectionHeading label="Inspections" count={inspections.length} />
 
       <ul className="bg-card-bg rounded border border-border overflow-hidden">
         {inspections.map((inspection, i) => (

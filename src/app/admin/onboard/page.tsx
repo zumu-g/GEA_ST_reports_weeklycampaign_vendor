@@ -80,7 +80,7 @@ export default function OnboardPage() {
         value={form[key]}
         onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
         placeholder={placeholder}
-        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
+        className="w-full bg-background border border-border rounded-md px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
       />
     </div>
   );
@@ -115,7 +115,7 @@ export default function OnboardPage() {
             <div className="flex gap-3">
               <button
                 onClick={copyLink}
-                className="flex-1 bg-foreground text-background font-body text-sm font-medium rounded-xl px-4 py-2.5 hover:opacity-90 transition-opacity"
+                className="flex-1 bg-foreground text-background font-body text-sm font-medium rounded-md px-4 py-2.5 hover:opacity-90 transition-opacity"
               >
                 {copied ? 'Copied!' : 'Copy portal link'}
               </button>
@@ -149,7 +149,7 @@ export default function OnboardPage() {
               <select
                 value={form.campaignType}
                 onChange={e => setForm(f => ({ ...f, campaignType: e.target.value }))}
-                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 font-body text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
+                className="w-full bg-background border border-border rounded-md px-4 py-2.5 font-body text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
               >
                 <option>Private Sale</option>
                 <option>Auction</option>
@@ -159,13 +159,13 @@ export default function OnboardPage() {
             </div>
 
             {error && (
-              <p className="font-body text-sm text-red-600 bg-red-50 rounded-xl px-4 py-2.5">{error}</p>
+              <p className="font-body text-sm text-red-600 bg-red-50 rounded-md px-4 py-2.5">{error}</p>
             )}
 
             <button
               type="submit"
               disabled={loading || !form.address || !form.owner}
-              className="w-full bg-foreground text-background font-body text-sm font-medium rounded-xl px-4 py-3 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+              className="w-full bg-foreground text-background font-body text-sm font-medium rounded-md px-4 py-3 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             >
               {loading ? 'Creating…' : 'Create vendor portal'}
             </button>

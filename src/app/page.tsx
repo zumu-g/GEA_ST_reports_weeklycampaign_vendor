@@ -13,6 +13,7 @@ import { getTokenForSlug } from "@/lib/vendor-tokens";
 import { getAllRentals } from "@/lib/rental-loader";
 import { getRentalTokenForSlug } from "@/lib/rental-tokens";
 import { WeeklyDraft } from "@/lib/types";
+import SectionHeading from "@/components/SectionHeading";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,7 @@ export default async function Dashboard() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-10 py-12">
+      <main className="reveal max-w-7xl mx-auto px-10 py-12">
 
         {/* Week heading */}
         <div className="mb-6">
@@ -99,26 +100,26 @@ export default async function Dashboard() {
         </div>
 
         {/* Vendor Reports heading + draft controls */}
-        <div className="mt-16 flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h2 className="font-display text-3xl font-normal leading-tight tracking-tight text-foreground">
-              Vendor Reports
-            </h2>
-            <p className="font-body text-sm text-muted mt-1">
-              {pendingCount > 0 ? (
-                <span>
-                  <span className="inline-block w-2 h-2 rounded-full bg-accent mr-1.5 align-middle motion-safe:animate-pulse" />
-                  {pendingCount} report{pendingCount !== 1 ? "s" : ""} pending approval
-                </span>
-              ) : (
-                "Select a property to view the full campaign report"
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <SyncVaultREButton />
-            <GenerateDraftsButton weekEnding={currentWeekEnding} />
-          </div>
+        <div className="mt-16">
+          <SectionHeading
+            label="Vendor Reports"
+            meta={
+              <div className="flex items-center gap-3">
+                <SyncVaultREButton />
+                <GenerateDraftsButton weekEnding={currentWeekEnding} />
+              </div>
+            }
+          />
+          <p className="font-body text-sm text-muted -mt-3 mb-6">
+            {pendingCount > 0 ? (
+              <span>
+                <span className="inline-block w-2 h-2 rounded-full bg-accent mr-1.5 align-middle motion-safe:animate-pulse" />
+                {pendingCount} report{pendingCount !== 1 ? "s" : ""} pending approval
+              </span>
+            ) : (
+              "Select a property to view the full campaign report"
+            )}
+          </p>
         </div>
 
         {/* Property grid */}
@@ -134,23 +135,23 @@ export default async function Dashboard() {
         </div>
 
         {/* Rental Reports section */}
-        <div className="mt-20 flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h2 className="font-display text-2xl font-normal leading-tight tracking-tight text-foreground">
-              Rental Reports
-            </h2>
-            <p className="font-body text-sm text-muted mt-1">
-              {rentals.length > 0
-                ? `${rentals.length} active rental listing${rentals.length !== 1 ? 's' : ''}`
-                : 'No rental listings yet'}
-            </p>
-          </div>
-          <Link
-            href="/generate/rental"
-            className="rounded px-4 py-2 text-sm font-medium font-body text-muted border border-border hover:border-foreground hover:text-foreground transition-colors flex-shrink-0"
-          >
-            New Rental Report
-          </Link>
+        <div className="mt-20">
+          <SectionHeading
+            label="Rental Reports"
+            meta={
+              <Link
+                href="/generate/rental"
+                className="rounded px-4 py-2 text-sm font-medium font-body text-muted border border-border hover:border-foreground hover:text-foreground transition-colors flex-shrink-0"
+              >
+                New Rental Report
+              </Link>
+            }
+          />
+          <p className="font-body text-sm text-muted -mt-3 mb-6">
+            {rentals.length > 0
+              ? `${rentals.length} active rental listing${rentals.length !== 1 ? 's' : ''}`
+              : 'No rental listings yet'}
+          </p>
         </div>
 
         {rentals.length > 0 ? (

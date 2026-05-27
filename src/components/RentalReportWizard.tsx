@@ -147,7 +147,7 @@ export default function RentalReportWizard({ activeRentals }: RentalReportWizard
     }
   }
 
-  const inputCls = 'w-full rounded-xl border border-border bg-card-bg px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40';
+  const inputCls = 'w-full rounded-md border border-border bg-card-bg px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40';
   const labelCls = 'font-body text-xs font-medium text-muted mb-1 block';
   const gridCls = 'grid grid-cols-1 sm:grid-cols-2 gap-4';
 
@@ -319,7 +319,7 @@ export default function RentalReportWizard({ activeRentals }: RentalReportWizard
           <div>
             <p className={labelCls}>Market news articles (optional)</p>
             {data.newsArticles.map(a => (
-              <div key={a.id} className="flex items-start gap-2 mb-2 bg-surface rounded-xl px-4 py-3">
+              <div key={a.id} className="flex items-start gap-2 mb-2 bg-surface rounded-md px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-body text-sm font-medium text-foreground truncate">{a.title || a.url}</p>
                   {a.note && <p className="font-body text-xs text-muted mt-0.5">{a.note}</p>}
@@ -331,7 +331,7 @@ export default function RentalReportWizard({ activeRentals }: RentalReportWizard
               <input className={inputCls} value={newNewsTitle} onChange={e => setNewNewsTitle(e.target.value)} placeholder="Article title" />
               <input className={inputCls} value={newNewsUrl} onChange={e => setNewNewsUrl(e.target.value)} placeholder="URL (optional)" />
               <input className={inputCls} value={newNewsNote} onChange={e => setNewNewsNote(e.target.value)} placeholder="Agent note (optional)" />
-              <button onClick={addNews} className="rounded-full px-4 py-1.5 text-xs font-medium font-body bg-card-bg border border-border text-foreground hover:border-accent transition-colors">
+              <button onClick={addNews} className="rounded-md px-4 py-1.5 text-xs font-medium font-body bg-card-bg border border-border text-foreground hover:border-accent transition-colors">
                 Add article
               </button>
             </div>
@@ -397,14 +397,14 @@ export default function RentalReportWizard({ activeRentals }: RentalReportWizard
         <button
           onClick={() => setStep(s => Math.max(0, s - 1))}
           disabled={step === 0}
-          className="rounded-full px-5 py-2 font-body text-sm font-medium border border-border text-foreground hover:border-accent disabled:opacity-40 transition-colors"
+          className="rounded-md px-5 py-2 font-body text-sm font-medium border border-border text-foreground hover:border-accent disabled:opacity-40 transition-colors"
         >
           Back
         </button>
         {step < STEPS.length - 1 && (
           <button
             onClick={() => setStep(s => s + 1)}
-            className="rounded-full px-5 py-2 font-body text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
+            className="rounded-md px-5 py-2 font-body text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
           >
             Next
           </button>

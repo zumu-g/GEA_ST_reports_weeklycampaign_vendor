@@ -1,3 +1,5 @@
+import SectionHeading from './SectionHeading';
+
 interface ChecklistSectionProps {
   checklist: { task: string; done: boolean }[];
 }
@@ -10,14 +12,7 @@ export default function ChecklistSection({ checklist }: ChecklistSectionProps) {
   return (
     <div className="bg-card-bg rounded border border-border p-6 mb-8">
       {/* Heading row */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="font-display text-xl font-medium text-foreground">
-          Campaign Checklist
-        </h2>
-        <span className="font-mono text-xs text-muted tabular-nums">
-          {completed}/{total}
-        </span>
-      </div>
+      <SectionHeading label="Campaign Checklist" count={`${completed}/${total}`} />
 
       {/* Progress bar */}
       <div className="w-full bg-surface rounded-full h-1 mb-6">

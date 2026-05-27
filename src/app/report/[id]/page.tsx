@@ -6,6 +6,7 @@ import Chat from "@/components/Chat";
 import ChecklistSection from "@/components/ChecklistSection";
 import InspectionHistory from "@/components/InspectionHistory";
 import DraftActions from "@/components/DraftActions";
+import SectionHeading from "@/components/SectionHeading";
 import { getProperty } from "@/lib/markdown-loader";
 import { propertyToVendorReport, weeklyDraftToVendorReport } from "@/lib/data-adapter";
 import { getWeeklyDraft, parseWeeklyDraftId } from "@/lib/weekly-drafts";
@@ -53,7 +54,7 @@ export default async function ReportPage({ params }: PageProps) {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-10 py-10">
+      <main className="reveal max-w-7xl mx-auto px-10 py-10">
         {/* Back link */}
         <Link
           href="/"
@@ -120,7 +121,7 @@ export default async function ReportPage({ params }: PageProps) {
 
         {/* Latest update banner */}
         {property?.latestUpdate && (
-          <div className="bg-accent/10 border border-accent/30 rounded-xl px-5 py-4 mb-6">
+          <div className="bg-accent/10 border border-accent/30 rounded-md px-5 py-4 mb-6">
             <p className="font-body text-sm text-foreground">{property.latestUpdate}</p>
           </div>
         )}
@@ -128,35 +129,40 @@ export default async function ReportPage({ params }: PageProps) {
         {/* Week ending heading */}
         {report.weekEnding && (
           <div className="mb-8">
-            <h2 className="font-display text-2xl font-medium text-foreground">
-              Week Ending{" "}
-              {new Date(report.weekEnding).toLocaleDateString("en-AU", {
+            <SectionHeading
+              label={`Week Ending ${new Date(report.weekEnding).toLocaleDateString("en-AU", {
                 day: "numeric",
                 month: "long",
                 year: "numeric",
-              })}
-            </h2>
-            <p className="font-body text-sm text-muted mt-1">
-              {report.daysOnMarket} days on market
-            </p>
+              })}`}
+              meta={<span className="font-body text-xs text-muted">{report.daysOnMarket} days on market</span>}
+            />
           </div>
         )}
 
-        {/* Key metrics grid */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
-          <StatCard label="Total Views" value={totalViews} />
-          <StatCard label="Total Enquiries" value={totalEnquiries} />
-          <StatCard label="Saves / Shortlists" value={totalSaves} />
-          <StatCard label="Open Home Attendees" value={report.openHomeAttendees} />
-          <StatCard label="Private Inspections" value={report.privateInspections} />
+        {/* Online reach — Views is the headline figure; enquiries and saves support it.
+            Inspection counts live in the Inspections Summary below, not duplicated here. */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-10">
+          <div className="md:col-span-6">
+            <StatCard
+              label="Total Views"
+              value={totalViews}
+              variant="hero"
+              subtitle="Across realestate.com.au and domain.com.au"
+            />
+          </div>
+          <div className="md:col-span-3">
+            <StatCard label="Enquiries" value={totalEnquiries} subtitle="Buyer enquiries" />
+          </div>
+          <div className="md:col-span-3">
+            <StatCard label="Saves" value={totalSaves} subtitle="Added to watchlists" />
+          </div>
         </div>
 
         {/* Portal breakdown */}
         {(report.reaViews > 0 || report.domainViews > 0) && (
           <div className="mb-8">
-            <h2 className="font-display text-xl font-medium text-foreground mb-4">
-              Portal Breakdown
-            </h2>
+            <SectionHeading label="Portal Breakdown" />
             <PortalBreakdown report={report} />
           </div>
         )}
@@ -173,9 +179,7 @@ export default async function ReportPage({ params }: PageProps) {
 
         {/* Inspections summary card */}
         <div className="mb-8">
-          <h2 className="font-display text-xl font-medium text-foreground mb-4">
-            Inspections Summary
-          </h2>
+          <SectionHeading label="Inspections Summary" />
           <div className="bg-card-bg rounded border border-border p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-border">
               <div className="pb-6 md:pb-0 md:pr-8">

@@ -16,7 +16,7 @@ export default function PropertyCard({ report, draft, vendorToken }: PropertyCar
 
   return (
     <Link href={`/report/${linkId}`} className="block group">
-      <div className="bg-card-bg rounded border border-border p-6 hover:border-accent/25 hover:shadow-[0_6px_20px_rgba(0,0,0,0.09)] hover:-translate-y-1 transition-all duration-200 cursor-pointer">
+      <div className="bg-card-bg rounded border border-border p-6 hover:border-muted/40 hover:bg-surface/40 active:scale-[0.99] transition-[colors,transform] duration-200 cursor-pointer">
 
         {/* Top section: address + badges */}
         <div className="flex items-start justify-between gap-3">

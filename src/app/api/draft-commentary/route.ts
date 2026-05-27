@@ -22,6 +22,7 @@ Write a candid, first-person market commentary paragraph (3–5 sentences) that 
 - Mention any relevant seasonal or economic factors (autumn 2026 market, interest rate environment, etc.)
 - Sound like a knowledgeable local agent talking to a client — not a corporate press release
 - Be specific enough to be credible, but not fabricate details you don't have
+- Do NOT use the phrase "I'll be straight with you" or any close variant ("to be straight", "being straight", "honestly", "I'll be honest")
 
 CAMPAIGN STATS SO FAR:
 - Address: ${input.propertyAddress || "—"}

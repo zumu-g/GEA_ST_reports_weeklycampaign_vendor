@@ -45,7 +45,7 @@ export default function Chat({ messages: initialMessages, vendorName }: ChatProp
     <div className="fixed bottom-6 right-6 z-50">
       {/* ── Chat panel ── */}
       {isOpen && (
-        <div className="w-96 max-h-[500px] bg-card-bg rounded border border-border shadow-[0_12px_32px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden mb-4">
+        <div className="w-96 max-h-[500px] bg-card-bg rounded-lg border border-border flex flex-col overflow-hidden mb-4">
 
           {/* Header */}
           <div className="bg-primary px-5 py-4 flex items-center justify-between flex-shrink-0">
@@ -84,11 +84,11 @@ export default function Chat({ messages: initialMessages, vendorName }: ChatProp
                 className={`flex flex-col ${msg.senderRole === "agent" ? "items-end" : "items-start"}`}
               >
                 {msg.senderRole === "vendor" ? (
-                  <div className="bg-card-bg border border-border rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%] shadow-sm">
+                  <div className="bg-card-bg border border-border rounded-lg rounded-tl-sm px-4 py-2.5 max-w-[85%]">
                     <p className="font-body text-sm text-foreground">{msg.message}</p>
                   </div>
                 ) : (
-                  <div className="bg-accent rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
+                  <div className="bg-accent rounded-lg rounded-tr-sm px-4 py-2.5 max-w-[85%]">
                     <p className="font-body text-sm text-primary">{msg.message}</p>
                   </div>
                 )}
@@ -107,7 +107,7 @@ export default function Chat({ messages: initialMessages, vendorName }: ChatProp
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
               placeholder="Type a message..."
-              className="flex-1 h-9 rounded-full border border-border bg-surface px-4 text-sm font-body text-foreground placeholder:text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all"
+              className="flex-1 h-9 rounded-md border border-border bg-surface px-4 text-sm font-body text-foreground placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 transition-all"
             />
             <button
               onClick={handleSend}
@@ -131,7 +131,7 @@ export default function Chat({ messages: initialMessages, vendorName }: ChatProp
       {/* ── Trigger button ── */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 rounded-full bg-primary shadow-[0_8px_24px_rgba(0,0,0,0.2)] flex items-center justify-center hover:bg-primary-light transition-all"
+        className="w-14 h-14 rounded-full bg-primary border border-border flex items-center justify-center hover:opacity-90 active:scale-[0.97] transition duration-150"
         aria-label={isOpen ? "Close chat" : "Open chat"}
       >
         {isOpen ? (

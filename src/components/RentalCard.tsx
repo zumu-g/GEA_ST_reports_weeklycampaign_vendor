@@ -13,7 +13,7 @@ export default function RentalCard({ rental, token }: RentalCardProps) {
   const applications = latest?.applications ?? 0;
 
   return (
-    <div className="bg-card-bg rounded border border-border p-6 hover:border-accent/25 hover:shadow-[0_6px_20px_rgba(0,0,0,0.09)] hover:-translate-y-1 transition-all duration-200">
+    <div className="bg-card-bg rounded border border-border p-6">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <h3 className="font-display text-xl font-normal leading-snug tracking-tight text-foreground">

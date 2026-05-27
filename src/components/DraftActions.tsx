@@ -32,14 +32,14 @@ export default function DraftActions({ draftId }: DraftActionsProps) {
     <div className="flex items-center gap-2 flex-wrap">
       <Link
         href={`/generate?draftId=${draftId}`}
-        className="h-9 rounded-full px-4 font-body text-sm font-medium bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all"
+        className="h-9 rounded-md px-4 font-body text-sm font-medium bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all"
       >
         Edit Draft
       </Link>
       <button
         onClick={handleApprove}
         disabled={approving}
-        className="h-9 rounded-full px-4 font-body text-sm font-medium bg-accent text-primary hover:bg-accent/80 disabled:opacity-50 disabled:cursor-wait transition-all"
+        className="h-9 rounded-md px-4 font-body text-sm font-medium bg-accent text-primary hover:bg-accent/80 disabled:opacity-50 disabled:cursor-wait transition-all"
       >
         {approving ? "Approving…" : "Approve Report"}
       </button>

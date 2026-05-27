@@ -1,54 +1,115 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callMiniMax } from "@/lib/minimax";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-export async function POST(req: NextRequest) {
-  const apiKey = process.env.MINIMAX_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "MINIMAX_API_KEY not configured" }, { status: 500 });
-  }
+interface Article {
+  title: string;
+  url: string;
+  note: string;
+  source?: string;
+  publishedAt?: string;
+}
 
-  const { weekEnding } = await req.json() as { weekEnding?: string };
+const QUERIES = [
+  'Berwick property market',
+  'Casey council property prices',
+  'Cardinia property market',
+  'Pakenham property market',
+  'Melbourne south east property market',
+  'Australian property market',
+];
 
-  const prompt = `You are a Melbourne real estate market analyst with deep knowledge of the Casey and Cardinia local government areas in Victoria's outer south-east.
+const RSS_BASE = 'https://news.google.com/rss/search';
 
-Generate exactly 3 concise market talking points that a GEA real estate agent could share with a vendor in the week ending ${weekEnding ?? "this week"}.
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
 
-Each talking point should be a credible observation about the Casey/Cardinia property market — covering things like:
-- Auction clearance rates and demand trends in the corridor
-- Interest rate environment and buyer confidence
-- Infrastructure projects affecting values (Pakenham rail corridor, road upgrades)
-- Seasonal market patterns
-- Price movements or comparison to inner/middle suburbs
-- First home buyer activity and government incentives
+function stripCData(s: string): string {
+  const m = s.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
+  return m ? m[1] : s;
+}
 
-Format your response as a JSON array of exactly 3 objects:
-[
-  { "title": "Short headline (max 10 words)", "note": "2-3 sentence commentary the agent can adapt for their vendor" },
-  ...
-]
+function stripTags(s: string): string {
+  return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
 
-Return only the JSON array. No preamble, no markdown fences.`;
+function parseItem(xml: string): Article | null {
+  const get = (tag: string) => {
+    const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));
+    return m ? stripCData(m[1]).trim() : '';
+  };
 
+  const title = decodeEntities(get('title'));
+  const link = get('link');
+  const description = decodeEntities(stripTags(get('description')));
+  const source = decodeEntities(get('source'));
+  const pubDate = get('pubDate');
+
+  if (!title || !link) return null;
+
+  return {
+    title,
+    url: link,
+    note: description || `${source ? source + ' · ' : ''}Market update relevant to this campaign.`,
+    source,
+    publishedAt: pubDate,
+  };
+}
+
+async function fetchQuery(q: string): Promise<Article[]> {
+  const url = `${RSS_BASE}?q=${encodeURIComponent(q)}&hl=en-AU&gl=AU&ceid=AU:en`;
   try {
-    const content = await callMiniMax(apiKey, [{ role: "user", content: prompt }], {
-      temperature: 0.7,
-      max_tokens: 4000,
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (GEA Weekly Report Bot)' },
+      next: { revalidate: 1800 },
     });
-
-    let articles: { title: string; note: string }[];
-    try {
-      articles = JSON.parse(content);
-    } catch {
-      const match = content.match(/\[[\s\S]*\]/);
-      articles = match ? JSON.parse(match[0]) : [];
-    }
-
-    return NextResponse.json({ articles });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const items = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
+    return items.map(parseItem).filter((a): a is Article => a !== null);
+  } catch {
+    return [];
   }
+}
+
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({})) as { suburb?: string; propertyAddress?: string };
+  const suburb = body.suburb?.trim() || body.propertyAddress?.split(',')[1]?.trim() || '';
+
+  const queries = [...QUERIES];
+  if (suburb && !queries.some(q => q.toLowerCase().includes(suburb.toLowerCase()))) {
+    queries.unshift(`${suburb} property market`);
+  }
+
+  const results = await Promise.all(queries.map(fetchQuery));
+  const seen = new Set<string>();
+  const merged: Article[] = [];
+
+  for (const list of results) {
+    for (const a of list) {
+      const key = a.title.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(a);
+    }
+  }
+
+  merged.sort((a, b) => {
+    const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
+    const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
+    return tb - ta;
+  });
+
+  const articles = merged.slice(0, 6);
+
+  return NextResponse.json({ articles });
 }

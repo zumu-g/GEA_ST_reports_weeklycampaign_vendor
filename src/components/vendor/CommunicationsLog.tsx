@@ -1,3 +1,5 @@
+import SectionHeading from '@/components/SectionHeading';
+
 interface CommunicationRow {
   date: string;
   type: string;
@@ -20,7 +22,7 @@ export default function CommunicationsLog({ communications }: CommunicationsLogP
   if (communications.length === 0) {
     return (
       <div className="mb-8">
-        <h2 className="font-display text-xl font-medium text-foreground mb-4">Communications</h2>
+        <SectionHeading label="Communications" count={communications.length} />
         <div className="bg-card-bg rounded border border-border px-6 py-8 text-center">
           <p className="font-body text-sm text-foreground mb-1">No messages yet.</p>
           <p className="font-body text-xs text-muted">Your agent will post updates here after each inspection and when there is news on your sale.</p>
@@ -31,7 +33,7 @@ export default function CommunicationsLog({ communications }: CommunicationsLogP
 
   return (
     <div className="mb-8">
-      <h2 className="font-display text-xl font-medium text-foreground mb-4">Communications</h2>
+      <SectionHeading label="Communications" count={communications.length} />
       <ul className="bg-card-bg rounded border border-border overflow-hidden">
         {communications.map((comm, i) => (
           <li

@@ -1,5 +1,30 @@
 import type { Metadata } from "next";
+import { Bodoni_Moda, Schibsted_Grotesk, Spline_Sans_Mono } from "next/font/google";
 import "./globals.css";
+
+// Warm Editorial Studio type system (see DESIGN.md):
+// display didone / body grotesk / mono figures.
+const display = Bodoni_Moda({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  style: ["normal", "italic"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const body = Schibsted_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const mono = Spline_Sans_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "GEA - Weekly Campaign & Vendor Reports",
@@ -12,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#1A1814" />

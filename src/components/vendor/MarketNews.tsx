@@ -1,3 +1,5 @@
+import SectionHeading from '@/components/SectionHeading';
+
 interface NewsItem {
   title: string;
   url: string;
@@ -13,7 +15,7 @@ export default function MarketNews({ news }: MarketNewsProps) {
 
   return (
     <section className="mb-8">
-      <h2 className="font-display text-xl font-medium text-foreground mb-4">Market News</h2>
+      <SectionHeading label="Market News" count={news.length} />
       <ul>
         {news.map((item, i) => (
           <li key={i}>
@@ -21,7 +23,7 @@ export default function MarketNews({ news }: MarketNewsProps) {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-4 border-b border-border last:border-0 flex items-start gap-3 group transition-colors block"
+              className="py-4 border-b border-border last:border-0 flex items-start gap-3 group transition-colors block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <div className="flex-1 min-w-0">
                 <p className="font-body text-sm font-medium text-foreground group-hover:text-accent transition-colors leading-snug mb-1">

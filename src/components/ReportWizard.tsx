@@ -3,6 +3,7 @@
 import { useState, useRef, RefObject } from "react";
 import Link from "next/link";
 import { GenerateReportInput, GeneratedReportNarrative, NewsArticle, WeeklyDraft } from "@/lib/types";
+import SectionHeading from "@/components/SectionHeading";
 
 // Keys in GenerateReportInput whose values are plain strings
 type StringInputKey = {
@@ -404,7 +405,7 @@ function NarrativePreview({
         "",
         "STATS THIS WEEK",
         ...narrative.statsTable.map((r) => {
-          const diff = r.target !== null ? r.actual - r.target : null;
+          const diff = r.target !== null && r.actual !== null ? r.actual - r.target : null;
           const pct = r.target && r.target > 0 ? Math.round((diff! / r.target) * 100) : null;
           return `${r.label}: ${r.actual}${r.target !== null ? ` (target ${r.target}${pct !== null ? `, ${pct >= 0 ? "+" : ""}${pct}%` : ""})` : ""}`;
         }),
@@ -495,12 +496,12 @@ function NarrativePreview({
               </thead>
               <tbody>
                 {narrative.statsTable.map((row) => {
-                  const diff = row.target !== null ? row.actual - row.target : null;
-                  const pct = row.target && row.target > 0 ? Math.round((diff! / row.target) * 100) : null;
+                  const diff = row.actual !== null && row.target !== null ? row.actual - row.target : null;
+                  const pct = diff !== null && row.target && row.target > 0 ? Math.round((diff / row.target) * 100) : null;
                   return (
                     <tr key={row.label} className="border-b border-border/50">
                       <td className="py-1.5 pr-4 text-foreground">{row.label}</td>
-                      <td className="py-1.5 pr-4 text-right font-medium text-foreground">{row.actual.toLocaleString()}</td>
+                      <td className="py-1.5 pr-4 text-right font-medium text-foreground">{row.actual !== null ? row.actual.toLocaleString() : "—"}</td>
                       <td className="py-1.5 pr-4 text-right text-muted">{row.target !== null ? row.target.toLocaleString() : "—"}</td>
                       <td className="py-1.5 text-right">
                         {pct !== null ? (
@@ -647,10 +648,10 @@ export default function ReportWizard({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Draft failed");
-      const articles = (json.articles as { title: string; note: string }[]).map((a) => ({
+      const articles = (json.articles as { title: string; url?: string; note: string }[]).map((a) => ({
         id: crypto.randomUUID(),
         title: a.title,
-        url: "",
+        url: a.url ?? "",
         note: a.note,
       }));
       setData((d) => ({ ...d, newsArticles: [...d.newsArticles, ...articles] }));
@@ -740,8 +741,8 @@ export default function ReportWizard({
         {step === 1 && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-display text-2xl font-medium text-foreground mb-1">Property Details</h2>
-              <p className="font-body text-sm text-muted mt-1 mb-6">Select an active listing or enter details for a new property.</p>
+              <SectionHeading label="Property Details" />
+              <p className="font-body text-sm text-muted -mt-3 mb-6">Select an active listing or enter details for a new property.</p>
             </div>
 
             {activeListings.length > 0 && (
@@ -801,8 +802,8 @@ export default function ReportWizard({
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-display text-2xl font-medium text-foreground mb-1">realestate.com.au Stats</h2>
-              <p className="font-body text-sm text-muted mt-1 mb-6">Enter this week's stats from REA. Optionally upload your CSV export and Claude will extract the numbers.</p>
+              <SectionHeading label="realestate.com.au Stats" />
+              <p className="font-body text-sm text-muted -mt-3 mb-6">Enter this week's stats from REA. Optionally upload your CSV export and Claude will extract the numbers.</p>
             </div>
             <StatBlock
               portal="rea"
@@ -818,8 +819,8 @@ export default function ReportWizard({
         {step === 3 && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-display text-2xl font-medium text-foreground mb-1">domain.com.au Stats</h2>
-              <p className="font-body text-sm text-muted mt-1 mb-6">Enter this week's stats from Domain. Optionally upload your CSV export.</p>
+              <SectionHeading label="domain.com.au Stats" />
+              <p className="font-body text-sm text-muted -mt-3 mb-6">Enter this week's stats from Domain. Optionally upload your CSV export.</p>
             </div>
             <StatBlock
               portal="domain"
@@ -835,8 +836,8 @@ export default function ReportWizard({
         {step === 4 && (
           <div className="space-y-5">
             <div>
-              <h2 className="font-display text-2xl font-medium text-foreground mb-1">Inspections This Week</h2>
-              <p className="font-body text-sm text-muted mt-1 mb-6">How many people came through the property?</p>
+              <SectionHeading label="Inspections This Week" />
+              <p className="font-body text-sm text-muted -mt-3 mb-6">How many people came through the property?</p>
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2 mb-1">
@@ -885,7 +886,7 @@ export default function ReportWizard({
                 onChange={(e) => set("inspectionNotes", e.target.value)}
                 placeholder="e.g. Strong interest from 3 buyers, 2 asked for contracts..."
                 rows={3}
-                className="w-full rounded-xl border border-border bg-card-bg px-4 py-3 text-sm font-body text-foreground placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
+                className="w-full rounded-md border border-border bg-card-bg px-4 py-3 text-sm font-body text-foreground placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
               />
             </div>
           </div>
@@ -896,14 +897,14 @@ export default function ReportWizard({
           <div className="space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-display text-2xl font-medium text-foreground mb-1">Agent's Weekly Commentary</h2>
+                <SectionHeading label="Agent's Weekly Commentary" />
                 <p className="font-body text-sm text-muted mt-1">Write your notes for this week. AI will rewrite these into professional vendor-facing language — so be as raw and direct as you like.</p>
               </div>
               <button
                 type="button"
                 onClick={draftCommentary}
                 disabled={draftingCommentary}
-                className="flex-shrink-0 h-9 rounded-full px-4 font-body text-xs font-medium bg-surface border border-border text-foreground hover:border-accent hover:text-accent disabled:opacity-50 disabled:cursor-wait transition-all whitespace-nowrap"
+                className="flex-shrink-0 h-9 rounded-md px-4 font-body text-xs font-medium bg-surface border border-border text-foreground hover:border-accent hover:text-accent disabled:opacity-50 disabled:cursor-wait transition-all whitespace-nowrap"
               >
                 {draftingCommentary ? "Drafting…" : "✦ AI Draft"}
               </button>
@@ -913,7 +914,7 @@ export default function ReportWizard({
               onChange={(e) => set("agentCommentary", e.target.value)}
               placeholder="e.g. Great open home, 24 groups, 3 really serious buyers. Couple from Malvern seemed very keen — inspected twice. Got 2 enquiries from interstate investors. Comparable at 38 Smith St sold under the hammer at $2.1m on Saturday which is a good sign for our price guide..."
               rows={10}
-              className="w-full rounded-xl border border-border bg-card-bg px-4 py-3 text-sm font-body text-foreground placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
+              className="w-full rounded-md border border-border bg-card-bg px-4 py-3 text-sm font-body text-foreground placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
             />
           </div>
         )}
@@ -923,31 +924,28 @@ export default function ReportWizard({
           <div className="space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-display text-2xl font-medium text-foreground mb-1">
-                  Market News{" "}
-                  <span className="font-body text-base font-normal text-muted">(optional)</span>
-                </h2>
+                <SectionHeading label="Market News (optional)" />
                 <p className="font-body text-sm text-muted mt-1">Add relevant news to give the vendor market context. AI can draft Casey &amp; Cardinia talking points — add source URLs where you have them.</p>
               </div>
               <button
                 type="button"
                 onClick={draftMarketNews}
                 disabled={draftingNews}
-                className="flex-shrink-0 h-9 rounded-full px-4 font-body text-xs font-medium bg-surface border border-border text-foreground hover:border-accent hover:text-accent disabled:opacity-50 disabled:cursor-wait transition-all whitespace-nowrap"
+                className="flex-shrink-0 h-9 rounded-md px-4 font-body text-xs font-medium bg-surface border border-border text-foreground hover:border-accent hover:text-accent disabled:opacity-50 disabled:cursor-wait transition-all whitespace-nowrap"
               >
                 {draftingNews ? "Drafting…" : "✦ AI Draft News"}
               </button>
             </div>
 
             {data.newsArticles.length === 0 && (
-              <div className="bg-surface rounded-xl border border-border p-4 text-center font-body text-sm text-muted">
+              <div className="bg-surface rounded-md border border-border p-4 text-center font-body text-sm text-muted">
                 No articles added yet — skip this step or add some below.
               </div>
             )}
 
             <div className="space-y-4">
               {data.newsArticles.map((article) => (
-                <div key={article.id} className="bg-surface rounded-xl border border-border p-4 space-y-3">
+                <div key={article.id} className="bg-surface rounded-md border border-border p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-body text-[10px] font-semibold uppercase tracking-widest text-muted/60">Article</span>
                     <button
@@ -985,7 +983,7 @@ export default function ReportWizard({
             {data.newsArticles.length < 5 && (
               <button
                 onClick={addNewsArticle}
-                className="w-full rounded-xl border border-dashed border-border py-3 font-body text-sm text-muted hover:border-accent hover:text-accent transition-colors"
+                className="w-full rounded-md border border-dashed border-border py-3 font-body text-sm text-muted hover:border-accent hover:text-accent transition-colors"
               >
                 + Add article
               </button>
@@ -999,11 +997,11 @@ export default function ReportWizard({
             {!narrative && !generating && (
               <div className="space-y-5">
                 <div>
-                  <h2 className="font-display text-2xl font-medium text-foreground mb-1">Ready to Generate</h2>
-                  <p className="font-body text-sm text-muted mt-1 mb-6">Claude will read everything you've provided and write a professional vendor report narrative.</p>
+                  <SectionHeading label="Ready to Generate" />
+                  <p className="font-body text-sm text-muted -mt-3 mb-6">Claude will read everything you've provided and write a professional vendor report narrative.</p>
                 </div>
 
-                <div className="bg-surface rounded-xl border border-border p-5 space-y-2">
+                <div className="bg-surface rounded-md border border-border p-5 space-y-2">
                   {[
                     { label: "Property", value: data.propertyAddress || "—" },
                     { label: "Vendor", value: data.vendorName || "—" },
@@ -1032,14 +1030,14 @@ export default function ReportWizard({
                 </div>
 
                 {error && (
-                  <div className="bg-danger/5 border border-danger/20 rounded-xl px-4 py-3 font-body text-sm text-danger">
+                  <div className="bg-danger/5 border border-danger/20 rounded-md px-4 py-3 font-body text-sm text-danger">
                     {error}
                   </div>
                 )}
 
                 <button
                   onClick={generate}
-                  className="w-full h-11 rounded-full px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent-light transition-all"
+                  className="w-full h-11 rounded-md px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent-light transition-all"
                 >
                   Generate Report with AI
                 </button>
@@ -1060,14 +1058,14 @@ export default function ReportWizard({
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={() => { setNarrative(null); setError(null); }}
-                    className="flex-1 h-11 rounded-full px-6 font-body font-medium text-sm bg-surface text-foreground border border-border hover:bg-border transition-all"
+                    className="flex-1 h-11 rounded-md px-6 font-body font-medium text-sm bg-surface text-foreground border border-border hover:bg-border transition-all"
                   >
                     Regenerate
                   </button>
                   {draftId ? (
                     <Link
                       href={`/report/${draftId}`}
-                      className="flex-1 h-11 rounded-full px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent/80 transition-all flex items-center justify-center"
+                      className="flex-1 h-11 rounded-md px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent/80 transition-all flex items-center justify-center"
                     >
                       View Report
                     </Link>
@@ -1079,7 +1077,7 @@ export default function ReportWizard({
                         setNarrative(null);
                         setError(null);
                       }}
-                      className="flex-1 h-11 rounded-full px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent-light transition-all"
+                      className="flex-1 h-11 rounded-md px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent-light transition-all"
                     >
                       New Report
                     </button>
@@ -1096,7 +1094,7 @@ export default function ReportWizard({
             <button
               onClick={() => setStep((s) => Math.max(1, s - 1))}
               disabled={step === 1}
-              className="h-11 rounded-full px-6 font-body font-medium text-sm bg-surface text-foreground border border-border hover:bg-border disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              className="h-11 rounded-md px-6 font-body font-medium text-sm bg-surface text-foreground border border-border hover:bg-border disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             >
               Back
             </button>
@@ -1105,7 +1103,7 @@ export default function ReportWizard({
               <button
                 onClick={() => setStep((s) => s + 1)}
                 disabled={!canNext()}
-                className="h-11 rounded-full px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent-light disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="h-11 rounded-md px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent-light disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 Next
               </button>
@@ -1113,7 +1111,7 @@ export default function ReportWizard({
               <button
                 onClick={generate}
                 disabled={generating}
-                className="h-11 rounded-full px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent-light disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="h-11 rounded-md px-6 font-body font-medium text-sm bg-accent text-primary hover:bg-accent-light disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 Generate Report
               </button>

@@ -7,18 +7,12 @@ interface PortalBreakdownProps {
 interface PortalPanelProps {
   name: string;
   dotColor: string;
-  borderColor: string;
   stats: { label: string; value: number }[];
 }
 
-function PortalPanel({ name, dotColor, borderColor, stats }: PortalPanelProps) {
+function PortalPanel({ name, dotColor, stats }: PortalPanelProps) {
   return (
-    <div
-      className={`bg-card-bg rounded border border-border overflow-hidden ${borderColor}`}
-    >
-      {/* Coloured top strip */}
-      <div className={`h-0.5 w-full ${borderColor === "border-t-2 border-red-500" ? "bg-red-500" : "bg-emerald-500"}`} />
-
+    <div className="bg-card-bg rounded-lg border border-border overflow-hidden">
       <div className="p-6">
         {/* Portal name */}
         <div className="flex items-center gap-2 mb-5">
@@ -31,14 +25,14 @@ function PortalPanel({ name, dotColor, borderColor, stats }: PortalPanelProps) {
           </span>
         </div>
 
-        {/* 2×2 stats grid */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Metric rows — label left, figure right, separated by hairlines (no nested boxes) */}
+        <div className="divide-y divide-border">
           {stats.map(({ label, value }) => (
-            <div key={label} className="bg-background rounded-xl p-4">
-              <p className="font-mono text-2xl font-medium tabular-nums text-foreground leading-none">
+            <div key={label} className="flex items-baseline justify-between py-3 first:pt-0 last:pb-0">
+              <span className="font-body text-sm text-muted">{label}</span>
+              <span className="font-mono text-lg font-medium tabular-nums text-foreground">
                 {value.toLocaleString()}
-              </p>
-              <p className="font-body text-xs text-muted mt-0.5 leading-snug">{label}</p>
+              </span>
             </div>
           ))}
         </div>
@@ -53,7 +47,6 @@ export default function PortalBreakdown({ report }: PortalBreakdownProps) {
       <PortalPanel
         name="realestate.com.au"
         dotColor="#EF4444"
-        borderColor="border-t-2 border-red-500"
         stats={[
           { label: "Views", value: report.reaViews },
           { label: "Enquiries", value: report.reaEnquiries },
@@ -64,7 +57,6 @@ export default function PortalBreakdown({ report }: PortalBreakdownProps) {
       <PortalPanel
         name="domain.com.au"
         dotColor="#10B981"
-        borderColor="border-t-2 border-emerald-500"
         stats={[
           { label: "Views", value: report.domainViews },
           { label: "Enquiries", value: report.domainEnquiries },

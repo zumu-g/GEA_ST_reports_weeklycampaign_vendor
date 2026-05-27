@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import SectionHeading from '../SectionHeading';
 
 interface Comment {
   id: string;
@@ -74,7 +75,7 @@ export default function CommentThread({ token }: { token: string }) {
 
   return (
     <section className="mb-12">
-      <h2 className="font-display text-xl font-medium text-foreground mb-4">Messages</h2>
+      <SectionHeading label="Messages" count={comments.length} />
       <div className="bg-card-bg rounded border border-border">
         <div className="px-5 py-4 max-h-[420px] overflow-y-auto">
           {!loaded && <p className="font-body text-sm text-muted">Loading…</p>}
@@ -87,7 +88,7 @@ export default function CommentThread({ token }: { token: string }) {
             {comments.map(c => (
               <li key={c.id} className={`flex ${c.author === 'vendor' ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
+                  className={`max-w-[80%] rounded-lg px-4 py-2.5 ${
                     c.author === 'vendor'
                       ? 'bg-accent/15 text-foreground'
                       : 'bg-background border border-border text-foreground'
@@ -108,7 +109,7 @@ export default function CommentThread({ token }: { token: string }) {
             onChange={e => setDraft(e.target.value)}
             placeholder="Write a message to your agent…"
             rows={2}
-            className="w-full resize-none rounded border border-border bg-background px-3 py-2 font-body text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent"
+            className="w-full resize-none rounded border border-border bg-background px-3 py-2 font-body text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
             onKeyDown={e => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
@@ -123,7 +124,7 @@ export default function CommentThread({ token }: { token: string }) {
               type="button"
               onClick={submit}
               disabled={isPending || !draft.trim()}
-              className="font-body text-xs font-semibold rounded-full px-4 py-1.5 bg-foreground text-background disabled:opacity-40"
+              className="font-body text-xs font-semibold rounded-md px-4 py-1.5 min-h-[44px] bg-foreground text-background hover:opacity-90 active:scale-[0.97] transition-all disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Send
             </button>
