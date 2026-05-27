@@ -1,7 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getSlugForListId } from '@/lib/clickup-config';
-import { appendActivity, ActivitySource } from '@/lib/markdown-loader';
+import {
+  appendActivity,
+  ActivitySource,
+  setChecklistItem,
+  upsertOpen,
+  removeOpen,
+} from '@/lib/markdown-loader';
+
+function hasTag(task: ClickUpTaskPayload | undefined, name: string): boolean {
+  if (!task?.tags) return false;
+  return task.tags.some(t => (typeof t === 'string' ? t : t?.name)?.toLowerCase() === name);
+}
+
+function toIso(v: string | number | null | undefined): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'string' ? Number(v) : v;
+  if (Number.isFinite(n)) return new Date(n).toISOString();
+  const d = new Date(String(v));
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function durationMin(task: ClickUpTaskPayload | undefined): number {
+  const f = task?.custom_fields?.find(c => c.name?.toLowerCase() === 'duration_min');
+  const n = Number(f?.value);
+  return Number.isFinite(n) && n > 0 ? n : 30;
+}
+
+const DONE_STATUSES = new Set(['complete', 'completed', 'closed', 'done']);
+
+function statusFromHistory(history?: ClickUpHistoryItem[]): string | undefined {
+  const change = history?.find(h => h.field === 'status');
+  const after = change?.after;
+  if (!after) return undefined;
+  return typeof after === 'object' ? after.status : after;
+}
 
 interface ClickUpHistoryItem {
   field?: string;
@@ -15,6 +49,10 @@ interface ClickUpTaskPayload {
   status?: { status?: string } | string;
   list?: { id?: string };
   url?: string;
+  tags?: Array<{ name?: string } | string>;
+  start_date?: string | number | null;
+  due_date?: string | number | null;
+  custom_fields?: Array<{ name?: string; value?: unknown }>;
 }
 
 interface ClickUpWebhookBody {
@@ -99,5 +137,38 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return NextResponse.json({ success: true, slug, entry });
+  let checklistUpdated = false;
+  const taskName = body.task?.name;
+  if (taskName) {
+    const newStatus = statusFromHistory(body.history_items)
+      ?? (typeof body.task?.status === 'object' ? body.task.status?.status : body.task?.status);
+    if (event === 'taskStatusUpdated' && newStatus && DONE_STATUSES.has(newStatus.toLowerCase())) {
+      checklistUpdated = await setChecklistItem(slug, taskName, true);
+    } else if (event === 'taskStatusUpdated' && newStatus) {
+      checklistUpdated = await setChecklistItem(slug, taskName, false);
+    }
+  }
+
+  let opensUpdated = false;
+  if (hasTag(body.task, 'open-home') && body.task?.id) {
+    if (event === 'taskDeleted') {
+      await removeOpen(slug, body.task.id);
+      opensUpdated = true;
+    } else {
+      const start = toIso(body.task.start_date) ?? toIso(body.task.due_date);
+      if (start) {
+        const end = new Date(new Date(start).getTime() + durationMin(body.task) * 60_000).toISOString();
+        await upsertOpen(slug, {
+          id: body.task.id,
+          start,
+          end,
+          source: 'clickup',
+          note: body.task.name,
+        });
+        opensUpdated = true;
+      }
+    }
+  }
+
+  return NextResponse.json({ success: true, slug, entry, checklistUpdated, opensUpdated });
 }
