@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Header from "@/components/Header";
-import StatCard from "@/components/StatCard";
 import PropertyCard from "@/components/PropertyCard";
 import RentalCard from "@/components/RentalCard";
 import GenerateDraftsButton from "@/components/GenerateDraftsButton";
@@ -38,13 +37,6 @@ export default async function Dashboard() {
     (sum, r) => sum + r.reaEnquiries + r.domainEnquiries,
     0
   );
-  const totalOpenHome = reports.reduce((sum, r) => sum + r.openHomeAttendees, 0);
-  const totalPrivate = reports.reduce((sum, r) => sum + r.privateInspections, 0);
-  const totalSaves = reports.reduce(
-    (sum, r) => sum + r.reaSaves + r.domainSaves,
-    0
-  );
-
   const rentals = await getAllRentals();
 
   const today = new Date().toLocaleDateString("en-AU", {
@@ -71,32 +63,26 @@ export default async function Dashboard() {
 
       <main className="reveal max-w-7xl mx-auto px-10 py-12">
 
-        {/* Week heading */}
+        {/* Week heading + at-a-glance summary */}
         <div className="mb-6">
           <h1 className="font-display text-3xl font-normal leading-tight tracking-tight text-foreground">
             Campaign Dashboard
           </h1>
-          <p className="font-body text-sm text-muted mt-1">
-            {today} &middot; {reports.length} active listing{reports.length !== 1 ? "s" : ""}
+          <p className="font-body text-sm text-muted mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>{today}</span>
+            <span className="text-muted/40" aria-hidden>&middot;</span>
+            <span className="tabular-nums">{reports.length} listing{reports.length !== 1 ? "s" : ""}</span>
+            <span className="text-muted/40" aria-hidden>&middot;</span>
+            <span className="tabular-nums">{(totalReaViews + totalDomainViews).toLocaleString()} views</span>
+            <span className="text-muted/40" aria-hidden>&middot;</span>
+            <span className="tabular-nums">{totalEnquiries} enquir{totalEnquiries !== 1 ? "ies" : "y"}</span>
+            {pendingCount > 0 && (
+              <>
+                <span className="text-muted/40" aria-hidden>&middot;</span>
+                <span className="tabular-nums text-accent font-medium">{pendingCount} pending</span>
+              </>
+            )}
           </p>
-        </div>
-
-        {/* Summary stats */}
-        <div className="mb-2">
-          <p className="font-body text-xs text-muted uppercase tracking-widest leading-none">Portal Performance</p>
-        </div>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <StatCard label="REA Views" value={totalReaViews} subtitle="realestate.com.au" variant="hero" />
-          <StatCard label="Domain Views" value={totalDomainViews} subtitle="domain.com.au" variant="hero" />
-        </div>
-        <div className="mb-2">
-          <p className="font-body text-xs text-muted uppercase tracking-widest leading-none">Activity</p>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Enquiries" value={totalEnquiries} />
-          <StatCard label="Open Home" value={totalOpenHome} subtitle="Total attendees" />
-          <StatCard label="Private Inspections" value={totalPrivate} subtitle="By appointment" />
-          <StatCard label="Saves / Shortlists" value={totalSaves} />
         </div>
 
         {/* Vendor Reports heading + draft controls */}
@@ -104,9 +90,16 @@ export default async function Dashboard() {
           <SectionHeading
             label="Vendor Reports"
             meta={
-              <div className="flex items-center gap-3">
-                <SyncVaultREButton />
-                <GenerateDraftsButton weekEnding={currentWeekEnding} />
+              <div className="flex items-center gap-3" title="Monday workflow: sync listings first, then generate this week’s drafts">
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-surface border border-border font-mono text-[10px] text-muted">1</span>
+                  <SyncVaultREButton />
+                </span>
+                <span className="font-body text-muted/50" aria-hidden>→</span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-surface border border-border font-mono text-[10px] text-muted">2</span>
+                  <GenerateDraftsButton weekEnding={currentWeekEnding} />
+                </span>
               </div>
             }
           />
