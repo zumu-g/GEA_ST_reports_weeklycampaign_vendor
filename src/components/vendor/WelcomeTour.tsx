@@ -33,7 +33,7 @@ export default function WelcomeTour({ token }: WelcomeTourProps) {
           {
             popover: {
               title: 'Welcome to your campaign dashboard',
-              description: 'This is your private portal. Everything here is updated by your agent — analytics, inspections, and communications.',
+              description: 'This is your private portal. Everything here is updated by your agent: analytics, inspections, and communications.',
               side: 'over',
               align: 'center',
             },

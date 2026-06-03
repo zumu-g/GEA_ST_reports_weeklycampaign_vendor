@@ -38,9 +38,9 @@ export default function Header() {
             </Link>
             <Link
               href="/generate"
-              className="font-body rounded-md px-5 py-2 text-sm font-medium bg-primary text-background hover:opacity-90 active:scale-[0.97] transition duration-150"
+              className="font-body text-sm text-muted hover:text-foreground transition-colors duration-150"
             >
-              Generate Report
+              New Report
             </Link>
           </nav>
 

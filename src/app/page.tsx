@@ -2,8 +2,7 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import PropertyCard from "@/components/PropertyCard";
 import RentalCard from "@/components/RentalCard";
-import GenerateDraftsButton from "@/components/GenerateDraftsButton";
-import SyncVaultREButton from "@/components/SyncVaultREButton";
+import WeeklyWorkflow from "@/components/WeeklyWorkflow";
 import { getAllProperties } from "@/lib/markdown-loader";
 import { propertyToVendorReport } from "@/lib/data-adapter";
 import { getAllWeeklyDrafts, getComingWeekEnding } from "@/lib/weekly-drafts";
@@ -56,7 +55,7 @@ export default async function Dashboard() {
           <div className="max-w-7xl mx-auto px-10 py-2.5 flex items-center gap-3">
             <span className="font-body text-sm font-medium text-warning">Demo data</span>
             <span className="w-px h-3.5 bg-warning/30" />
-            <span className="font-body text-xs text-warning/80">No property files found in GEA_vendor_portal/properties/ — check that the folder is accessible and contains markdown files.</span>
+            <span className="font-body text-xs text-warning/80">No property files found in GEA_vendor_portal/properties/. Check that the folder is accessible and contains markdown files.</span>
           </div>
         </div>
       )}
@@ -68,45 +67,27 @@ export default async function Dashboard() {
           <h1 className="font-display text-3xl font-normal leading-tight tracking-tight text-foreground">
             Campaign Dashboard
           </h1>
-          <p className="font-body text-sm text-muted mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {/* Metric strip: hairline dividers, not repeated middle-dots (rationed to 1/line) */}
+          <div className="font-body text-sm text-muted mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 [&>span:not(:first-child)]:border-l [&>span:not(:first-child)]:border-border [&>span:not(:first-child)]:pl-4">
             <span>{today}</span>
-            <span className="text-muted/40" aria-hidden>&middot;</span>
             <span className="tabular-nums">{reports.length} listing{reports.length !== 1 ? "s" : ""}</span>
-            <span className="text-muted/40" aria-hidden>&middot;</span>
             <span className="tabular-nums">{(totalReaViews + totalDomainViews).toLocaleString()} views</span>
-            <span className="text-muted/40" aria-hidden>&middot;</span>
             <span className="tabular-nums">{totalEnquiries} enquir{totalEnquiries !== 1 ? "ies" : "y"}</span>
             {pendingCount > 0 && (
-              <>
-                <span className="text-muted/40" aria-hidden>&middot;</span>
-                <span className="tabular-nums text-accent font-medium">{pendingCount} pending</span>
-              </>
+              <span className="tabular-nums text-accent font-medium">{pendingCount} pending</span>
             )}
-          </p>
+          </div>
         </div>
 
         {/* Vendor Reports heading + draft controls */}
         <div className="mt-16">
           <SectionHeading
             label="Vendor Reports"
-            meta={
-              <div className="flex items-center gap-3" title="Monday workflow: sync listings first, then generate this week’s drafts">
-                <span className="inline-flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-surface border border-border font-mono text-[10px] text-muted">1</span>
-                  <SyncVaultREButton />
-                </span>
-                <span className="font-body text-muted/50" aria-hidden>→</span>
-                <span className="inline-flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-surface border border-border font-mono text-[10px] text-muted">2</span>
-                  <GenerateDraftsButton weekEnding={currentWeekEnding} />
-                </span>
-              </div>
-            }
+            meta={<WeeklyWorkflow weekEnding={currentWeekEnding} />}
           />
           <p className="font-body text-sm text-muted -mt-3 mb-6">
             {pendingCount > 0 ? (
-              <span>
-                <span className="inline-block w-2 h-2 rounded-full bg-accent mr-1.5 align-middle motion-safe:animate-pulse" />
+              <span className="text-accent font-medium">
                 {pendingCount} report{pendingCount !== 1 ? "s" : ""} pending approval
               </span>
             ) : (

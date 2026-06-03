@@ -12,6 +12,7 @@ import ActivityTicker from '@/components/vendor/ActivityTicker';
 import LiveStatsTile from '@/components/vendor/LiveStatsTile';
 import CommentThread from '@/components/vendor/CommentThread';
 import MarketNews from '@/components/vendor/MarketNews';
+import LocalMarket from '@/components/vendor/LocalMarket';
 import DownloadButton from '@/components/vendor/DownloadButton';
 import InspectionHistory from '@/components/InspectionHistory';
 import SectionHeading from '@/components/SectionHeading';
@@ -67,6 +68,12 @@ export default async function VendorDashboard({
   // street headline and a quieter locality line.
   const [heroStreet, ...heroRest] = property.address.split(',');
   const heroLocality = heroRest.join(',').trim();
+
+  // Suburb label for the local-market sections; the vendor-report endpoint
+  // geocodes the address itself, so no client-side geocode is needed here.
+  const localitySuburb = property.address.includes(',')
+    ? property.address.split(',').slice(-1)[0].replace(/\b(VIC|NSW|QLD|SA|WA|TAS|NT|ACT)\b/i, '').replace(/\d{4}/, '').trim()
+    : undefined;
 
   return (
     <div className="min-h-screen bg-background">
@@ -145,7 +152,7 @@ export default async function VendorDashboard({
             </div>
             <div>
               <p className="eyebrow mb-1">Days on market</p>
-              <p className="font-mono text-sm font-medium text-foreground tabular-nums">{daysOnMarket > 0 ? daysOnMarket : '—'}</p>
+              <p className="font-mono text-sm font-medium text-foreground tabular-nums">{daysOnMarket > 0 ? daysOnMarket : '-'}</p>
             </div>
           </div>
         </section>
@@ -346,6 +353,9 @@ export default async function VendorDashboard({
 
         {/* ── Two-way Messages ─────────────────────────────── */}
         <CommentThread token={token} />
+
+        {/* ── Local Market (just sold + just listed within 500m) ── */}
+        <LocalMarket address={property.address} suburb={localitySuburb} />
 
         {/* ── Market News ──────────────────────────────────── */}
         <MarketNews news={property.news} />

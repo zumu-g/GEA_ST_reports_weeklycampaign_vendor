@@ -81,7 +81,7 @@ export default function CommentThread({ token }: { token: string }) {
           {!loaded && <p className="font-body text-sm text-muted">Loading…</p>}
           {loaded && comments.length === 0 && (
             <p className="font-body text-sm text-muted">
-              Send a message to your agent — questions, feedback, or anything else.
+              Send a message to your agent: questions, feedback, or anything else.
             </p>
           )}
           <ul className="space-y-4">

@@ -89,7 +89,7 @@ export default async function UpcomingOpens({ slug }: { slug: string }) {
             <li key={o.id} className="py-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-body text-sm text-foreground">
-                  {fmtDate(o.start)} · {fmtTime(o.start)}–{fmtTime(o.end)}
+                  {fmtDate(o.start)} · {fmtTime(o.start)}-{fmtTime(o.end)}
                 </p>
                 {o.note && (
                   <p className="font-body text-xs text-muted truncate">{o.note}</p>

@@ -3,7 +3,7 @@ import SectionHeading from '@/components/SectionHeading';
 
 function Delta({ value }: { value: number }) {
   if (value === 0) {
-    return <span className="font-body text-[10px] text-muted">—</span>;
+    return <span className="font-body text-[10px] text-muted">-</span>;
   }
   const up = value > 0;
   return (

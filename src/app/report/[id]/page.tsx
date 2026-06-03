@@ -79,7 +79,7 @@ export default async function ReportPage({ params }: PageProps) {
               <div className="flex items-center gap-3 mb-2">
                 {isDraft && (
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold font-body uppercase tracking-wider bg-accent/20 text-accent border border-accent/40">
-                    Draft — Pending Approval
+                    Draft · Pending Approval
                   </span>
                 )}
               </div>

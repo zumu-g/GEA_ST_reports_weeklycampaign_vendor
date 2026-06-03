@@ -1,0 +1,31 @@
+{
+  "week": 4,
+  "propertyAddress": "12 Wattle Grove, Camberwell VIC 3124",
+  "vendorName": "Mr & Mrs Patel",
+  "vendorEmail": "patel.family@example.com",
+  "agent": "Sarah Nguyen",
+  "weekEnding": "2026-05-30",
+  "askingPrice": "$1,650,000 – $1,750,000",
+  "portals": {
+    "rea": {
+      "rawText": "realestate.com.au Listing Performance Report\n12 Wattle Grove, Camberwell\nListing views 842\nEnquiries 6\nShortlisted 38\nPhone reveals 14\nSearch impressions 9320\nYour listing received 18% more views than similar listings in Camberwell."
+    },
+    "domain": null
+  },
+  "previousWeek": {
+    "views": 980,
+    "enquiries": 9
+  },
+  "openHome": {
+    "groups": 5,
+    "previousGroups": 8,
+    "privateInspections": 2,
+    "names": ["The Chen family", "James & Olivia R.", "D. Kowalski"]
+  },
+  "priceReviewLogged": true,
+  "ownerApprovedRange": false,
+  "agentComment": "We've now had four weeks of strong online interest but enquiry has eased and buyer feedback at the last two opens consistently placed value at the lower end of our range. My recommendation is to adjust the advertised range down to $1,600,000 – $1,690,000 to re-engage the qualified buyers who've inspected. Happy to talk this through on Monday.",
+  "checklist": {
+    "offerDecisionsMade": false
+  }
+}

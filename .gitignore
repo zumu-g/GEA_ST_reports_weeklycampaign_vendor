@@ -42,3 +42,4 @@ next-env.d.ts
 
 # vendor portal tokens (contains secret URLs — do not commit)
 src/lib/vendor-tokens.json
+scripts/weekly-report/output/
