@@ -11,6 +11,8 @@ import ActivityFeed from '@/components/vendor/ActivityFeed';
 import ActivityTicker from '@/components/vendor/ActivityTicker';
 import LiveStatsTile from '@/components/vendor/LiveStatsTile';
 import CommentThread from '@/components/vendor/CommentThread';
+import DocumentHub from '@/components/vendor/DocumentHub';
+import GuidesSpotlight from '@/components/vendor/GuidesSpotlight';
 import MarketNews from '@/components/vendor/MarketNews';
 import LocalMarket from '@/components/vendor/LocalMarket';
 import DownloadButton from '@/components/vendor/DownloadButton';
@@ -351,6 +353,9 @@ export default async function VendorDashboard({
         {/* ── Communications ───────────────────────────────── */}
         <CommunicationsLog communications={property.communications} />
 
+        {/* ── Documents ────────────────────────────────────── */}
+        <DocumentHub token={token} />
+
         {/* ── Two-way Messages ─────────────────────────────── */}
         <CommentThread token={token} />
 
@@ -359,6 +364,9 @@ export default async function VendorDashboard({
 
         {/* ── Market News ──────────────────────────────────── */}
         <MarketNews news={property.news} />
+
+        {/* ── Seller Guides ────────────────────────────────── */}
+        <GuidesSpotlight token={token} />
 
         {/* ── Daily Quote ──────────────────────────────────── */}
         <DailyQuote text={dailyQuote.text} author={dailyQuote.author} />

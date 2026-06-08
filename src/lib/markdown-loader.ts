@@ -6,6 +6,9 @@ const PROPERTIES_DIR = process.env.PROPERTIES_DIR || '/Users/stuartgrant_mbp13/L
 
 // --- Types ---
 
+// Checklist items are tri-state: not started, in progress, done.
+export type ChecklistStatus = 'todo' | 'doing' | 'done';
+
 export interface NewsItem {
   title: string;
   url: string;
@@ -22,7 +25,7 @@ export interface PropertyData {
   campaignType: string;
   agent: string;
   calendarId: string;
-  checklist: { task: string; done: boolean }[];
+  checklist: { task: string; status: ChecklistStatus; done: boolean }[];
   latestUpdate: string;
   analytics: AnalyticsRow[];
   inspections: InspectionRow[];
@@ -94,12 +97,22 @@ function parsePropertyDetails(content: string): Partial<PropertyData> {
   };
 }
 
-function parseChecklist(content: string): { task: string; done: boolean }[] {
-  const items: { task: string; done: boolean }[] = [];
-  const regex = /- \[(x| )\] (.+)/g;
+function markToStatus(mark: string): ChecklistStatus {
+  if (mark === 'x') return 'done';
+  if (mark === '~') return 'doing';
+  return 'todo';
+}
+
+function parseChecklist(
+  content: string,
+): { task: string; status: ChecklistStatus; done: boolean }[] {
+  const items: { task: string; status: ChecklistStatus; done: boolean }[] = [];
+  // Markers: [ ] = not started, [~] = in progress, [x] = done
+  const regex = /- \[(x|~| )\] (.+)/g;
   let match;
   while ((match = regex.exec(content)) !== null) {
-    items.push({ task: match[2].trim(), done: match[1] === 'x' });
+    const status = markToStatus(match[1]);
+    items.push({ task: match[2].trim(), status, done: status === 'done' });
   }
   return items;
 }
@@ -674,17 +687,28 @@ function levenshtein(a: string, b: string): number {
   return dp[b.length];
 }
 
+const STATUS_TO_MARK: Record<ChecklistStatus, string> = {
+  todo: ' ',
+  doing: '~',
+  done: 'x',
+};
+
 /**
- * Find the Campaign Checklist line that best matches `label` and flip its
- * checkbox to `done`. If no line matches within Levenshtein 3 (on normalised
- * text), append a new item to the end of the checklist so nothing is silently
- * dropped. Returns true if the file was modified.
+ * Find the Campaign Checklist line that best matches `label` and set its
+ * checkbox to the requested status. Accepts a tri-state ChecklistStatus, or a
+ * boolean for backward compatibility (true -> done, false -> todo). If no line
+ * matches within Levenshtein 3 (on normalised text), append a new item to the
+ * end of the checklist so nothing is silently dropped. Returns true if the file
+ * was modified.
  */
 export async function setChecklistItem(
   slug: string,
   label: string,
-  done: boolean,
+  status: ChecklistStatus | boolean,
 ): Promise<boolean> {
+  const targetStatus: ChecklistStatus =
+    typeof status === 'boolean' ? (status ? 'done' : 'todo') : status;
+  const mark = STATUS_TO_MARK[targetStatus];
   const propertyPath = path.join(PROPERTIES_DIR, slug, 'PROPERTY.md');
   let content: string;
   try {
@@ -703,7 +727,7 @@ export async function setChecklistItem(
   const target = normaliseLabel(label);
   let bestIdx = -1;
   let bestScore = Infinity;
-  const itemRegex = /^- \[(x| )\] (.+)$/;
+  const itemRegex = /^- \[(x|~| )\] (.+)$/;
 
   for (let i = 0; i < lines.length; i++) {
     const m = lines[i].match(itemRegex);
@@ -717,7 +741,6 @@ export async function setChecklistItem(
   let newSection: string;
   if (bestIdx !== -1 && bestScore <= 3) {
     const m = lines[bestIdx].match(itemRegex)!;
-    const mark = done ? 'x' : ' ';
     if (m[1] === mark) return false;
     lines[bestIdx] = `- [${mark}] ${m[2]}`;
     newSection = lines.join('\n');
@@ -727,7 +750,7 @@ export async function setChecklistItem(
       if (itemRegex.test(lines[i])) lastItem = i;
     }
     const insertAt = lastItem === -1 ? lines.length : lastItem + 1;
-    lines.splice(insertAt, 0, `- [${done ? 'x' : ' '}] ${label}`);
+    lines.splice(insertAt, 0, `- [${mark}] ${label}`);
     newSection = lines.join('\n');
   }
 
@@ -823,6 +846,135 @@ export async function appendComment(
   items.push(entry);
   await writeJsonSidecar(slug, 'comments.json', items);
   return entry;
+}
+
+// --- Agent internal notes (private; NEVER read by the vendor-facing page) ---
+//
+// notes.json holds private campaign notes the agent keeps about a property.
+// These are deliberately separate from comments.json (the vendor-visible
+// thread). `readNotes`/`appendNotes` must only ever be called from agent-side,
+// AGENT_API_KEY-gated routes — never from src/app/vendor/[token]/**.
+
+export interface Note {
+  id: string;
+  ts: string;
+  author: string;
+  body: string;
+}
+
+export async function readNotes(slug: string): Promise<Note[]> {
+  return readJsonSidecar<Note>(slug, 'notes.json');
+}
+
+export async function appendNotes(
+  slug: string,
+  note: Omit<Note, 'id' | 'ts' | 'author'> & { author?: string },
+): Promise<Note> {
+  const items = await readNotes(slug);
+  const entry: Note = {
+    id: randomId(),
+    ts: new Date().toISOString(),
+    author: note.author || 'Agent',
+    body: note.body,
+  };
+  items.push(entry);
+  await writeJsonSidecar(slug, 'notes.json', items);
+  return entry;
+}
+
+// --- Document hub (files stored under properties/<slug>/documents/) ---
+
+export interface DocumentMeta {
+  id: string;
+  filename: string; // sanitised original name (display)
+  storedName: string; // on-disk name (uuid.ext) — never client-derived
+  mime: string;
+  size: number;
+  uploadedBy: 'agent' | 'vendor';
+  ts: string;
+  label?: string;
+}
+
+function documentsDir(slug: string): string {
+  return path.join(PROPERTIES_DIR, slug, 'documents');
+}
+
+async function readDocumentIndex(slug: string): Promise<DocumentMeta[]> {
+  const filePath = path.join(documentsDir(slug), 'index.json');
+  try {
+    const raw = await fs.readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeDocumentIndex(slug: string, items: DocumentMeta[]): Promise<void> {
+  const dir = documentsDir(slug);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(
+    path.join(dir, 'index.json'),
+    JSON.stringify(items, null, 2) + '\n',
+    'utf-8',
+  );
+}
+
+export async function readDocuments(slug: string): Promise<DocumentMeta[]> {
+  const items = await readDocumentIndex(slug);
+  items.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
+  return items;
+}
+
+export async function appendDocument(
+  slug: string,
+  meta: Omit<DocumentMeta, 'id' | 'ts'>,
+  bytes: Buffer,
+): Promise<DocumentMeta> {
+  const dir = documentsDir(slug);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, meta.storedName), bytes);
+
+  const entry: DocumentMeta = {
+    id: randomId(),
+    ts: new Date().toISOString(),
+    ...meta,
+  };
+  const items = await readDocumentIndex(slug);
+  items.push(entry);
+  await writeDocumentIndex(slug, items);
+  return entry;
+}
+
+// Returns the file bytes + metadata for a given document id, or null if the id
+// is not present in the index. Callers must use this rather than trusting a
+// client-supplied path/name (path-traversal guard).
+export async function getDocumentBytes(
+  slug: string,
+  id: string,
+): Promise<{ meta: DocumentMeta; bytes: Buffer } | null> {
+  const items = await readDocumentIndex(slug);
+  const meta = items.find(d => d.id === id);
+  if (!meta) return null;
+  try {
+    const bytes = await fs.readFile(path.join(documentsDir(slug), meta.storedName));
+    return { meta, bytes };
+  } catch {
+    return null;
+  }
+}
+
+export async function removeDocument(slug: string, id: string): Promise<boolean> {
+  const items = await readDocumentIndex(slug);
+  const meta = items.find(d => d.id === id);
+  if (!meta) return false;
+  try {
+    await fs.unlink(path.join(documentsDir(slug), meta.storedName));
+  } catch {
+    // file already gone — still drop the index entry
+  }
+  await writeDocumentIndex(slug, items.filter(d => d.id !== id));
+  return true;
 }
 
 export interface TimelineEntry {
