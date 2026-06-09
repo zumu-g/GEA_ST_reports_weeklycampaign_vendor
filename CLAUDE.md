@@ -14,7 +14,7 @@ Dashboard for **Grants Estate Agents (GEA)** to create weekly campaign reports f
 - **Styling**: Tailwind CSS 4
 - **AI**: MiniMax M2.5 (`MINIMAX_API_KEY` in `.env.local`) — report generation, commentary drafting, market news, PDF stat extraction
 - **Data**: Markdown files under `GEA_vendor_portal/properties/{slug}/` (sales) and `GEA_vendor_portal/rentals/{slug}/` (rentals)
-- **Repo**: https://github.com/zumu-g/GEA_reports_weeklycampaign_vendor.git
+- **Repo**: https://github.com/zumu-g/GEA_ST_reports_weeklycampaign_vendor.git
 
 ## Project Structure
 ```
