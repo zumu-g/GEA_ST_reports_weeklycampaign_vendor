@@ -50,6 +50,13 @@ export default async function ReportPage({ params }: PageProps) {
   const totalSaves = report.reaSaves + report.domainSaves;
   const isDraft = report.status === "draft";
 
+  // Week-over-week trend — analytics[0] is the current week, analytics[1] the prior one.
+  // Only markdown-backed properties carry history; mock/draft reports show no pill.
+  const prevWeek = property?.analytics?.[1];
+  const prevViews = prevWeek ? prevWeek.reaViews + prevWeek.domainViews : null;
+  const prevEnquiries = prevWeek ? prevWeek.reaEnquiries + prevWeek.domainEnquiries : null;
+  const prevSaves = prevWeek ? prevWeek.reaSaves + prevWeek.domainSaves : null;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -149,13 +156,14 @@ export default async function ReportPage({ params }: PageProps) {
               value={totalViews}
               variant="hero"
               subtitle="Across realestate.com.au and domain.com.au"
+              previousValue={prevViews}
             />
           </div>
           <div className="md:col-span-3">
-            <StatCard label="Enquiries" value={totalEnquiries} subtitle="Buyer enquiries" />
+            <StatCard label="Enquiries" value={totalEnquiries} subtitle="Buyer enquiries" previousValue={prevEnquiries} />
           </div>
           <div className="md:col-span-3">
-            <StatCard label="Saves" value={totalSaves} subtitle="Added to watchlists" />
+            <StatCard label="Saves" value={totalSaves} subtitle="Added to watchlists" previousValue={prevSaves} />
           </div>
         </div>
 
