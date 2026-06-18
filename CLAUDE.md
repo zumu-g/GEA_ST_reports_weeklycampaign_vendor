@@ -196,4 +196,4 @@ npm run build  # production build
 - Vendor tokens: `src/lib/vendor-tokens.json` | Rental tokens: `src/lib/rental-tokens.json` (both gitignored in prod)
 - Do NOT deploy to Vercel — use an alternative host
 - `.impeccable.md` at project root stores design context for the impeccable design skill
-- **Git state**: local main is 4 commits ahead of origin but the branches have diverged — origin has 5 old commits from a prior Apple HIG design direction that was superseded. Next session: force-push local to origin (`git push --force origin main`) to resolve, then all is clean.
+- **Git state**: clean — local `main` and `origin/main` are in sync at `b406b55` (the earlier Apple HIG divergence was resolved via force-push).
