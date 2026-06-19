@@ -60,6 +60,38 @@ today the CRM does **not** yet provide this data:
   endpoints today.
 - **No external/VaultRE property ID** — matching would fall back to address text.
 
+## CRM Readiness — audit 2026-06-18 (pipes built, no data)
+
+A code-level audit of GEA_crmAI shows the **read-API contract is shipped**, but
+the data behind it is not yet flowing:
+
+- ✅ **Auth** — `weekly-report` consumer Bearer key (`WEEKLY_REPORT_API_TOKEN`),
+  applied to `/api/report/*`. (Env-var based; confirm it's set in Railway prod.)
+- ✅ **Property keying** — `Listing.vaultExternalId` (indexed) + resolver:
+  `GET /api/report/resolve?vaultId=…|address=…` → `{ listingId, vaultExternalId }`.
+- ✅ **Gap-aware stats contract** — `GET /api/report/listings/{id}` returns each
+  metric as `{ value, source, capturedAt, gap }` — matches our gap-vs-zero need.
+- 🟡 **Property payload thin** — missing price guide, listed date, days on market,
+  agent, vendor name (only an unresolved `ownerContactId`). Field-mapping fix.
+- 🟡 **Portal stats: schema only** — `CampaignStat` model exists but
+  `recordStatCapture` is test-only; **no production writer** → all metrics return
+  `gap:true` in prod. No REA/Domain split (single generic `source` string).
+- ❌ **Sales inspections / open-homes** — not modelled (PM tenancy endpoint only).
+- ❌ **VaultRE sync + token** — no client, no job, token not configured;
+  `vaultExternalId` only set via manual/CSV import, so the resolver mostly 404s.
+
+Consumer requests confirmed working today:
+`GET /api/report/resolve?vaultId=…` and `GET /api/report/listings/{id}`, both with
+`Authorization: Bearer <WEEKLY_REPORT_API_TOKEN>`.
+
+## Stat-ingestion Decision — CRM owns it (resolved 2026-06-18)
+
+Portal stats (and VaultRE/inspection data) are ingested **entirely by the CRM**
+(scraping / VaultRE sync). This report app stays a **pure consumer** — it does not
+write stats into the CRM. Trade-off accepted: the report is blocked on this data
+until the CRM builds the ingestion, rather than shipping an interim report-side
+writer.
+
 ## Sequencing Decision — CRM-first (resolved)
 
 Chosen: **build the producer side in GEA_crmAI first**, then have the weekly
