@@ -1,4 +1,6 @@
 import AnimatedNumber from './AnimatedNumber';
+import { fieldDisplay } from '@/lib/field-display';
+import type { FieldSource } from '@/lib/types';
 
 interface StatCardProps {
   label: string;
@@ -7,15 +9,22 @@ interface StatCardProps {
   variant?: 'default' | 'hero';
   /** Previous week's value — when provided (and not null), renders a week-over-week trend pill. */
   previousValue?: number | null;
+  /** CRM provenance for this value. When `gap`, renders "Needs entry" instead of the number. */
+  fieldSource?: FieldSource;
 }
 
-export default function StatCard({ label, value, subtitle, variant = 'default', previousValue }: StatCardProps) {
+export default function StatCard({ label, value, subtitle, variant = 'default', previousValue, fieldSource }: StatCardProps) {
   const isHero = variant === 'hero';
+  const display = fieldDisplay(value, fieldSource);
   return (
     <div className={`bg-card-bg rounded border border-border ${isHero ? 'p-8' : 'p-6'}`}>
       <div className="h-0.5 w-8 bg-accent mb-4 origin-left animate-accent-expand" />
       <p className="eyebrow mb-3">{label}</p>
-      {isHero ? (
+      {display.isGap ? (
+        <p className={`font-body italic text-muted/60 leading-none ${isHero ? 'text-2xl' : 'text-lg'}`}>
+          Needs entry
+        </p>
+      ) : isHero ? (
         <AnimatedNumber
           value={value}
           duration={650}
@@ -26,7 +35,10 @@ export default function StatCard({ label, value, subtitle, variant = 'default', 
           {value.toLocaleString()}
         </p>
       )}
-      <TrendPill value={value} previousValue={previousValue} isHero={isHero} />
+      {!display.isGap && <TrendPill value={value} previousValue={previousValue} isHero={isHero} />}
+      {!display.isGap && display.hint && (
+        <p className={`font-body text-muted/50 ${isHero ? 'text-xs mt-2' : 'text-[10px] mt-1'}`}>{display.hint}</p>
+      )}
       {subtitle && (
         <p className={`font-body text-muted/70 ${isHero ? 'text-sm mt-2' : 'text-xs mt-1'}`}>{subtitle}</p>
       )}
