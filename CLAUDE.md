@@ -41,8 +41,9 @@ src/
       draft-market-news/route.ts        # POST: address/week → 3 market news bullets (MiniMax)
       weekly-drafts/
         generate/route.ts               # POST: create blank drafts for all properties this week
-        [id]/route.ts                   # GET/PATCH: fetch or update a draft
+        [id]/route.ts                   # GET/PATCH: fetch or update a draft (PATCH marks agent-edited fields)
         [id]/approve/route.ts           # POST: approve a draft
+        [id]/refresh/route.ts           # POST: re-pull CRM data for one draft (keeps agent edits)
       ingest/
         analytics/route.ts              # POST: store portal stats to property markdown
         inspection/route.ts             # POST: store inspection data to property markdown
@@ -55,8 +56,6 @@ src/
         tokens/route.ts                 # GET/POST: manage vendor access tokens
         campaign-tasks/route.ts         # Vendor campaign task management
         notify/route.ts                 # Vendor notification endpoint
-      sync/
-        vaultre/route.ts                # POST: sync listings from VaultRE API
   components/
     Header.tsx                          # GEA branded header/nav (navy, Gloock wordmark)
     StatCard.tsx                        # Reusable metric card (default + hero variant)
@@ -64,8 +63,7 @@ src/
     PropertyCard.tsx                    # Sales listing card on dashboard
     RentalCard.tsx                      # Rental listing card on dashboard
     ShareButton.tsx                     # Copy vendor portal URL to clipboard
-    SyncVaultREButton.tsx               # Trigger VaultRE listing sync
-    GenerateDraftsButton.tsx            # Create this week's drafts for all properties
+    GenerateDraftsButton.tsx            # Create this week's drafts (CRM pre-filled) for all properties
     PortalBreakdown.tsx                 # REA vs Domain stats side-by-side
     Chat.tsx                            # Floating chat widget (UI only — no backend yet)
     ReportWizard.tsx                    # 7-step wizard with file upload + AI generation
@@ -89,11 +87,12 @@ src/
     rental-loader.ts                    # Load rental data from markdown files
     property-registry.ts                # List/resolve property slugs
     data-adapter.ts                     # Convert markdown props to VendorReport format
-    weekly-drafts.ts                    # Draft lifecycle (create, save, approve)
+    weekly-drafts.ts                    # Draft lifecycle (create, save, approve, CRM enrich/refresh)
+    crm-client.ts                       # GEA_crmAI read-API client (resolve + listings)
+    crm-draft-mapper.ts                 # Map CRM response -> draft fields (gap-aware, agent edits win)
     vendor-tokens.ts                    # Sales token → slug mapping (JSON file)
     rental-tokens.ts                    # Rental token → slug mapping (JSON file)
     rental-tokens.json                  # Rental token store (gitignored in prod)
-    vaultre.ts                          # VaultRE API client
     clickup-config.ts                   # ClickUp integration config
     quotes.ts                           # Daily quote data
 
@@ -153,9 +152,9 @@ npm run build  # production build
 - Shows approved draft: stats, checklist, comms log, inspection history, market news
 
 ### Monday workflow (agent)
-1. Click **Sync Listings** — pulls current listings from VaultRE via `/api/sync/vaultre`
-2. Click **Generate This Week's Drafts** — creates blank draft scaffolds for all properties
-3. Complete reports for each property, approve, share vendor links
+1. Click **Generate This Week's Drafts** — creates a draft per property, pre-filled from the GEA CRM read API (property + portal stats + inspections), with gaps flagged where the CRM has no data
+2. Complete/override reports for each property (agent edits win over CRM refresh), approve, share vendor links
+3. Optionally **refresh** a draft to re-pull the latest CRM data without losing agent edits (`/api/weekly-drafts/[id]/refresh`)
 
 ## Current Status (as of 15 May 2026)
 ### Done
@@ -166,7 +165,7 @@ npm run build  # production build
 - Landlord portal (`/landlord/[token]`) — parallel namespace for rental listings
 - Markdown data layer for properties and rentals
 - Weekly draft workflow (create, edit, approve)
-- VaultRE listing sync (`/api/sync/vaultre`)
+- CRM-backed draft data: drafts pre-fill from the GEA_crmAI read API (gap-aware, per-field provenance, agent edits win); direct VaultRE integration retired
 - PWA support (manifest, service worker, icons)
 - Full design polish pass: Gloock/Hanken Grotesk/Fira Mono type system, warm GEA palette, animated hero stat cards, reduced-motion accessible animations
 - Deterministic impeccable scan: clean (zero pattern flags)
@@ -176,7 +175,7 @@ npm run build  # production build
 ### TODO (next session) — ordered by impact
 1. **[P1] PropertyCard navigation trap** — entire card is `<Link>`, ShareButton nests `<button>` inside `<a>` (invalid HTML). Fix: remove Link wrapper, add "View Report →" link in card footer. Opens space for one-click Approve on card.
 2. **[P2] GenerateDraftsButton swallows errors** — catch block only does `console.error`. Add error state + show week-ending in button label ("Generate Drafts — week ending 16 May").
-3. **[P3] Sync → Generate have no sequence cue** — two buttons side-by-side with no indication of order or dependency. Fix: number them or disable Generate until Sync completes, add tooltip.
+3. **[P3] ~~Sync → Generate sequence cue~~** — resolved: the Sync step was removed (drafts now pull from the CRM at generate time); `WeeklyWorkflow` is a single Generate action.
 4. **[P4] RentalCard false affordance** — has `hover:-translate-y-1` lift but is not clickable. Fix: either wire to `/landlord/[token]` or remove hover lift until navigation exists.
 5. **[P5] Aggregate stat cards consume ~280px** — collapse to single-line sub-header under h1: `6 listings · 2,847 views · 12 enquiries · 3 pending`.
 6. **Chat backend** — persist agent-vendor messages (Chat.tsx is UI only, no storage)
@@ -190,7 +189,7 @@ npm run build  # production build
 - The iCloud path has spaces — always quote paths in terminal commands
 - Brand colours: primary navy `#1e3a5f`, accent gold `#c9a96e` (internal tool uses warm variant: `--accent: #C8A96E`)
 - `MINIMAX_API_KEY` must be set in `.env.local` — used by all AI routes
-- `VAULTRE_API_KEY` and `VAULTRE_API_SECRET` must be set in `.env.local` for VaultRE sync
+- `CRM_API_BASE_URL` and `WEEKLY_REPORT_API_TOKEN` must be set in `.env.local` for CRM-backed draft data (the CRM owns the VaultRE/portal integrations; this app no longer calls VaultRE directly). Until set, drafts generate with gap-flagged fields.
 - CSV uploads are parsed entirely client-side (no API call) — see `parseCSVStats()` in `ReportWizard.tsx`
 - PDF uploads: `/api/extract-pdf` (pdf-parse) then `/api/parse-stats` (MiniMax AI)
 - Vendor tokens: `src/lib/vendor-tokens.json` | Rental tokens: `src/lib/rental-tokens.json` (both gitignored in prod)

@@ -60,7 +60,7 @@ export default function GenerateDraftsButton({ weekEnding, disabled = false }: G
       <button
         onClick={handleGenerate}
         disabled={loading || disabled}
-        title={disabled ? "Sync listings first (step 1)." : "Creates a blank draft for each property."}
+        title="Creates a draft for each property, pre-filled from the CRM."
         className={`h-9 rounded px-4 font-body text-sm font-medium bg-accent text-primary hover:bg-accent/80 transition-all whitespace-nowrap ${
           loading ? "opacity-50 cursor-wait" : disabled ? "opacity-40 cursor-not-allowed" : ""
         }`}
