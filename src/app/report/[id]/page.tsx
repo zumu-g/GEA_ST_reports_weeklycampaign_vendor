@@ -10,6 +10,8 @@ import SectionHeading from "@/components/SectionHeading";
 import { getProperty } from "@/lib/markdown-loader";
 import { propertyToVendorReport, weeklyDraftToVendorReport } from "@/lib/data-adapter";
 import { getWeeklyDraft, parseWeeklyDraftId } from "@/lib/weekly-drafts";
+import { fieldDisplay } from "@/lib/field-display";
+import type { FieldSource } from "@/lib/types";
 import { mockReports } from "@/lib/mock-data";
 import Link from "next/link";
 
@@ -56,6 +58,23 @@ export default async function ReportPage({ params }: PageProps) {
   const prevViews = prevWeek ? prevWeek.reaViews + prevWeek.domainViews : null;
   const prevEnquiries = prevWeek ? prevWeek.reaEnquiries + prevWeek.domainEnquiries : null;
   const prevSaves = prevWeek ? prevWeek.reaSaves + prevWeek.domainSaves : null;
+
+  // CRM provenance (draft-backed reports only). A combined total is a gap only
+  // when BOTH contributing portal fields are gaps; otherwise it shows the number.
+  const fieldSources = weeklyDraft?.fieldSources;
+  const combinedSource = (rea: string, domain: string): FieldSource | undefined => {
+    if (!fieldSources) return undefined;
+    const a = fieldSources[rea];
+    const b = fieldSources[domain];
+    if (!a && !b) return undefined;
+    const gap = (a?.gap ?? true) && (b?.gap ?? true);
+    return { source: gap ? null : "crm", capturedAt: null, gap };
+  };
+  const viewsSource = combinedSource("reaViews", "domainViews");
+  const enquiriesSource = combinedSource("reaEnquiries", "domainEnquiries");
+  const savesSource = combinedSource("reaSaves", "domainSaves");
+  const openHomesDisplay = fieldDisplay(report.openHomeAttendees, fieldSources?.openHomeAttendees);
+  const inspectionsDisplay = fieldDisplay(report.privateInspections, fieldSources?.privateInspections);
 
   return (
     <div className="min-h-screen bg-background">
@@ -157,13 +176,14 @@ export default async function ReportPage({ params }: PageProps) {
               variant="hero"
               subtitle="Across realestate.com.au and domain.com.au"
               previousValue={prevViews}
+              fieldSource={viewsSource}
             />
           </div>
           <div className="md:col-span-3">
-            <StatCard label="Enquiries" value={totalEnquiries} subtitle="Buyer enquiries" previousValue={prevEnquiries} />
+            <StatCard label="Enquiries" value={totalEnquiries} subtitle="Buyer enquiries" previousValue={prevEnquiries} fieldSource={enquiriesSource} />
           </div>
           <div className="md:col-span-3">
-            <StatCard label="Saves" value={totalSaves} subtitle="Added to watchlists" previousValue={prevSaves} />
+            <StatCard label="Saves" value={totalSaves} subtitle="Added to watchlists" previousValue={prevSaves} fieldSource={savesSource} />
           </div>
         </div>
 
@@ -191,9 +211,13 @@ export default async function ReportPage({ params }: PageProps) {
           <div className="bg-card-bg rounded border border-border p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-border">
               <div className="pb-6 md:pb-0 md:pr-8">
-                <p className="font-mono text-3xl font-medium text-foreground tabular-nums">
-                  {report.openHomeAttendees}
-                </p>
+                {openHomesDisplay.isGap ? (
+                  <p className="font-body italic text-muted/60 text-lg leading-none">Needs entry</p>
+                ) : (
+                  <p className="font-mono text-3xl font-medium text-foreground tabular-nums">
+                    {report.openHomeAttendees}
+                  </p>
+                )}
                 <p className="font-body text-sm text-muted mt-1">
                   Open Home Attendees
                 </p>
@@ -202,9 +226,13 @@ export default async function ReportPage({ params }: PageProps) {
                 </p>
               </div>
               <div className="py-6 md:py-0 md:px-8">
-                <p className="font-mono text-3xl font-medium text-foreground tabular-nums">
-                  {report.privateInspections}
-                </p>
+                {inspectionsDisplay.isGap ? (
+                  <p className="font-body italic text-muted/60 text-lg leading-none">Needs entry</p>
+                ) : (
+                  <p className="font-mono text-3xl font-medium text-foreground tabular-nums">
+                    {report.privateInspections}
+                  </p>
+                )}
                 <p className="font-body text-sm text-muted mt-1">
                   Private Inspections
                 </p>
