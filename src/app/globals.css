@@ -130,11 +130,16 @@ body {
 }
 
 @media print {
+  @page {
+    margin: 14mm 12mm;
+  }
+
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
+  html,
   body {
     background: #FAF8F4 !important;
     color: #1A1814 !important;
@@ -146,14 +151,31 @@ body {
     display: none !important;
   }
 
-  /* Avoid breaking cards mid-page */
-  section {
+  /* The report column should fill the printable width, not the on-screen max-w */
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* Keep cards, stat blocks and grids from splitting across pages */
+  section,
+  .bg-card-bg {
     break-inside: avoid;
   }
 
-  /* Remove sticky header */
+  /* Headings stay with the content that follows them */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  /* Remove sticky header + drop shadows that muddy print */
   header {
     position: static !important;
+  }
+
+  * {
     box-shadow: none !important;
   }
 }

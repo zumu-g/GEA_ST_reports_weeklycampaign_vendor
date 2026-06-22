@@ -172,17 +172,20 @@ npm run build  # production build
 - Rental cards on dashboard (RentalCard component)
 - Animated count-up on hero stat cards (AnimatedNumber, reduced-motion aware)
 
+### Done (UX cleanup pass — P1–P5, completed 22 Jun 2026)
+- **[P1] PropertyCard navigation trap** — card is now a plain `<div>`; footer has a "View Report →" link and a one-click `ApproveDraftButton`. No nested-interactive HTML.
+- **[P2] GenerateDraftsButton errors** — error state surfaced inline; button label shows "Generate Drafts · week ending {date}".
+- **[P3] Sync → Generate cue** — resolved; `WeeklyWorkflow` is a single Generate action (drafts pull from CRM at generate time).
+- **[P4] RentalCard false affordance** — hover lift removed; real "New report" / "View portal →" links in footer.
+- **[P5] Aggregate stat cards** — collapsed to a single-line metric strip under the h1 (`{date} · n listings · n views · n enquiries · n pending`) at `src/app/page.tsx`.
+
 ### TODO (next session) — ordered by impact
-1. **[P1] PropertyCard navigation trap** — entire card is `<Link>`, ShareButton nests `<button>` inside `<a>` (invalid HTML). Fix: remove Link wrapper, add "View Report →" link in card footer. Opens space for one-click Approve on card.
-2. **[P2] GenerateDraftsButton swallows errors** — catch block only does `console.error`. Add error state + show week-ending in button label ("Generate Drafts — week ending 16 May").
-3. **[P3] ~~Sync → Generate sequence cue~~** — resolved: the Sync step was removed (drafts now pull from the CRM at generate time); `WeeklyWorkflow` is a single Generate action.
-4. **[P4] RentalCard false affordance** — has `hover:-translate-y-1` lift but is not clickable. Fix: either wire to `/landlord/[token]` or remove hover lift until navigation exists.
-5. **[P5] Aggregate stat cards consume ~280px** — collapse to single-line sub-header under h1: `6 listings · 2,847 views · 12 enquiries · 3 pending`.
-6. **Chat backend** — persist agent-vendor messages (Chat.tsx is UI only, no storage)
-7. **PDF export** — generate downloadable vendor reports for email
-8. **Week-over-week trends** — show % change vs previous week on stat cards
-9. **Historical data** — let vendors/agents browse past weeks' reports
-10. **Deploy** — host publicly so vendors can access their portal
+1. **PDF export** — generate downloadable vendor reports for email
+2. **CRM Track 2 consumer** — confirm/complete the weekly-report CRM read-API wiring (memory flags as not-fully-wired; recent commits underway)
+3. **Chat backend** — persist agent-vendor messages (Chat.tsx is UI only, no storage)
+4. **Week-over-week trends** — show % change vs previous week on stat cards
+5. **Historical data** — let vendors/agents browse past weeks' reports
+6. **Deploy** — host publicly so vendors can access their portal
 
 ## Dev Notes
 - Port 3000 may be in use; dev server will auto-pick next available port

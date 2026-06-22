@@ -55,7 +55,9 @@ export default async function LandlordDashboard({
 
   return (
     <div className="min-h-screen bg-background">
-      <VendorHeader address={property.address} daysOnMarket={daysListed} />
+      <div className="print:hidden">
+        <VendorHeader address={property.address} daysOnMarket={daysListed} />
+      </div>
 
       {/* Print-only header */}
       <div className="hidden print:block px-5 pt-6 pb-4 border-b border-border max-w-2xl mx-auto">
@@ -105,13 +107,15 @@ export default async function LandlordDashboard({
           </section>
         )}
 
-        {/* Campaign Checklist */}
-        {property.checklist.length > 0 && (
-          <CampaignChecklist items={property.checklist} storageKey={`gea:checklist:${property.slug}`} />
-        )}
+        {/* Campaign Checklist (interactive) + What's Next (live) — web only */}
+        <div className="print:hidden">
+          {property.checklist.length > 0 && (
+            <CampaignChecklist items={property.checklist} storageKey={`gea:checklist:${property.slug}`} />
+          )}
 
-        {/* What's Next — ClickUp tasks tagged vendor */}
-        <CampaignTimeline slug={property.slug} />
+          {/* What's Next — ClickUp tasks tagged vendor */}
+          <CampaignTimeline slug={property.slug} />
+        </div>
 
         {/* Analytics */}
         {property.analytics.length > 0 && (

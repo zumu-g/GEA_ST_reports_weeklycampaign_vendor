@@ -79,7 +79,9 @@ export default async function VendorDashboard({
 
   return (
     <div className="min-h-screen bg-background">
-      <VendorHeader address={property.address} daysOnMarket={daysOnMarket} token={token} />
+      <div className="print:hidden">
+        <VendorHeader address={property.address} daysOnMarket={daysOnMarket} token={token} />
+      </div>
 
       <div className="max-w-2xl mx-auto px-5 pt-4 print:hidden">
         <ActivityTicker slug={property.slug} />
@@ -117,8 +119,8 @@ export default async function VendorDashboard({
 
       <main className="reveal max-w-2xl mx-auto px-5 pt-10 pb-16">
 
-        {/* ── Hero / masthead ──────────────────────────────── */}
-        <section className="mb-12">
+        {/* ── Hero / masthead (web only; print uses the print header above) ── */}
+        <section className="mb-12 print:hidden">
           <div className="flex items-start justify-between gap-4">
             <p className="eyebrow pt-2">{property.campaignType || 'Campaign'}</p>
             <div className="flex-shrink-0">
@@ -159,10 +161,12 @@ export default async function VendorDashboard({
           </div>
         </section>
 
-        {/* ── Recent Activity ──────────────────────────────── */}
-        <LiveStatsTile slug={property.slug} listed={property.listed} />
+        {/* ── Recent Activity (live; web only) ─────────────── */}
+        <div className="print:hidden">
+          <LiveStatsTile slug={property.slug} listed={property.listed} />
 
-        <ActivityFeed slug={property.slug} />
+          <ActivityFeed slug={property.slug} />
+        </div>
 
         {/* ── Latest Update ────────────────────────────────── */}
         {property.latestUpdate && (
@@ -193,12 +197,13 @@ export default async function VendorDashboard({
           </section>
         )}
 
-        {/* ── Upcoming Opens (from ClickUp) ─────────────────── */}
-        <UpcomingOpens slug={property.slug} />
+        {/* ── Upcoming Opens + Appointments (live; web only) ── */}
+        <div className="print:hidden">
+          <UpcomingOpens slug={property.slug} />
 
-        {/* ── Upcoming Appointments ────────────────────────── */}
-        <div data-tour="appointments">
-          <AppointmentCalendar calendarId={property.calendarId} />
+          <div data-tour="appointments">
+            <AppointmentCalendar calendarId={property.calendarId} />
+          </div>
         </div>
 
         {/* ── Campaign Analytics ───────────────────────────── */}
@@ -340,36 +345,41 @@ export default async function VendorDashboard({
         {/* ── Weekly Trend ─────────────────────────────────── */}
         <WeeklyTrend analytics={property.analytics} />
 
-        {/* ── What's Next ──────────────────────────────────── */}
-        <CampaignTimeline slug={property.slug} />
+        {/* ── What's Next (live; web only) ─────────────────── */}
+        <div className="print:hidden">
+          <CampaignTimeline slug={property.slug} />
 
-        {/* ── Campaign Checklist ───────────────────────────── */}
-        {property.checklist.length > 0 && (
-          <div data-tour="checklist">
-            <CampaignChecklist items={property.checklist} storageKey={`gea:checklist:${property.slug}`} />
-          </div>
-        )}
+          {/* ── Campaign Checklist (interactive; web only) ──── */}
+          {property.checklist.length > 0 && (
+            <div data-tour="checklist">
+              <CampaignChecklist items={property.checklist} storageKey={`gea:checklist:${property.slug}`} />
+            </div>
+          )}
+        </div>
 
         {/* ── Communications ───────────────────────────────── */}
         <CommunicationsLog communications={property.communications} />
 
-        {/* ── Documents ────────────────────────────────────── */}
-        <DocumentHub token={token} />
-
-        {/* ── Two-way Messages ─────────────────────────────── */}
-        <CommentThread token={token} />
-
-        {/* ── Local Market (just sold + just listed within 500m) ── */}
-        <LocalMarket address={property.address} suburb={localitySuburb} />
-
         {/* ── Market News ──────────────────────────────────── */}
         <MarketNews news={property.news} />
 
-        {/* ── Seller Guides ────────────────────────────────── */}
-        <GuidesSpotlight token={token} />
+        {/* ── Live / interactive sections (web only) ───────── */}
+        <div className="print:hidden">
+          {/* Documents */}
+          <DocumentHub token={token} />
 
-        {/* ── Daily Quote ──────────────────────────────────── */}
-        <DailyQuote text={dailyQuote.text} author={dailyQuote.author} />
+          {/* Two-way Messages */}
+          <CommentThread token={token} />
+
+          {/* Local Market (just sold + just listed within 500m) */}
+          <LocalMarket address={property.address} suburb={localitySuburb} />
+
+          {/* Seller Guides */}
+          <GuidesSpotlight token={token} />
+
+          {/* Daily Quote */}
+          <DailyQuote text={dailyQuote.text} author={dailyQuote.author} />
+        </div>
 
         {/* ── Footer ───────────────────────────────────────── */}
         <footer className="mt-12 pt-8 pb-4 text-center border-t border-border">
