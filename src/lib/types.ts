@@ -55,6 +55,27 @@ export interface WeeklyDraft {
   newsArticles: NewsArticle[];
   generatedNarrative: GeneratedReportNarrative | null;
   messages: ChatMessage[];
+  /**
+   * Per-field provenance for CRM-sourced values. Keyed by WeeklyDraft field name
+   * (e.g. 'reaViews'). Absent keys mean the field was never CRM-populated.
+   * `gap: true` marks "no data" so the UI can distinguish it from a real zero.
+   */
+  fieldSources?: Record<string, FieldSource>;
+  /**
+   * Field names the agent has manually set. CRM pre-fill/refresh never overwrites
+   * these — agent edits always win (see plan KTD2).
+   */
+  agentEdited?: string[];
+}
+
+/** Provenance + freshness for a single CRM-sourced draft field. */
+export interface FieldSource {
+  /** Origin of the value, e.g. 'rea', 'domain', 'crm'. Null when gap. */
+  source: string | null;
+  /** ISO timestamp of when the CRM captured the value. Null when gap. */
+  capturedAt: string | null;
+  /** True when the CRM had no value for this field ("needs entry", not zero). */
+  gap: boolean;
 }
 
 export interface ChatMessage {
