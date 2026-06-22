@@ -3,6 +3,8 @@ import path from 'path';
 import { WeeklyDraft } from '@/lib/types';
 import { getAllProperties, getProperty } from '@/lib/markdown-loader';
 import { propertyToVendorReport } from '@/lib/data-adapter';
+import { resolveListing, getReportListing } from '@/lib/crm-client';
+import { applyCrmToDraft } from '@/lib/crm-draft-mapper';
 
 const PROPERTIES_DIR =
   process.env.PROPERTIES_DIR ||
@@ -59,7 +61,7 @@ export async function generateWeeklyDraftForProperty(
 
   const report = propertyToVendorReport(property);
 
-  return {
+  const base: WeeklyDraft = {
     id: makeWeeklyDraftId(slug, weekEnding),
     propertySlug: slug,
     weekEnding,
@@ -86,7 +88,27 @@ export async function generateWeeklyDraftForProperty(
     newsArticles: [],
     generatedNarrative: null,
     messages: [],
+    fieldSources: {},
+    agentEdited: [],
   };
+
+  return enrichDraftFromCrm(base);
+}
+
+/**
+ * Pre-fill a draft from the CRM read API. Resolves the listing by address, fetches
+ * its property + gap-aware stats, and applies them without clobbering agent edits.
+ * Degrades gracefully: an unresolved listing or unreachable CRM marks fields as
+ * gaps rather than failing (plan KTD5/KTD6).
+ */
+export async function enrichDraftFromCrm(draft: WeeklyDraft): Promise<WeeklyDraft> {
+  const resolved = await resolveListing({ address: draft.propertyAddress });
+  if (!resolved.ok || !resolved.data) return applyCrmToDraft(draft, null);
+
+  const listing = await getReportListing(resolved.data.listingId);
+  if (!listing.ok || !listing.data) return applyCrmToDraft(draft, null);
+
+  return applyCrmToDraft(draft, listing.data);
 }
 
 export async function generateAllWeeklyDrafts(

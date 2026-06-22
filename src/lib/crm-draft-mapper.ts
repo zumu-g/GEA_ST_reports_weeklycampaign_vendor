@@ -32,6 +32,26 @@ const COMBINED_FIELD_MAP: { field: keyof WeeklyDraft; metric: string }[] = [
   { field: 'privateInspections', metric: 'inspections' },
 ];
 
+/** Metadata fields populated from the CRM listing object. */
+const META_FIELDS: (keyof WeeklyDraft)[] = [
+  'propertyAddress',
+  'askingPrice',
+  'listingDate',
+  'daysOnMarket',
+  'agent',
+  'vendorName',
+];
+
+/**
+ * Every draft field the CRM can populate. PATCH uses this to decide which
+ * agent-changed fields to mark as edited (so a later CRM refresh won't clobber).
+ */
+export const CRM_MAPPED_FIELDS: string[] = [
+  ...PORTAL_FIELD_MAP.map((m) => m.field as string),
+  ...COMBINED_FIELD_MAP.map((m) => m.field as string),
+  ...META_FIELDS.map((f) => f as string),
+];
+
 const GAP: FieldSource = { source: null, capturedAt: null, gap: true };
 
 function statToSource(stat: CrmStat): FieldSource {
