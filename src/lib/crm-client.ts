@@ -66,7 +66,10 @@ export function isCrmConfigured(): boolean {
   return Boolean(CRM_API_BASE_URL && WEEKLY_REPORT_API_TOKEN);
 }
 
-async function crmFetch<T>(pathAndQuery: string): Promise<CrmResult<T | null>> {
+async function crmFetch<T>(
+  pathAndQuery: string,
+  opts?: { method?: string; body?: unknown },
+): Promise<CrmResult<T | null>> {
   if (!isCrmConfigured()) {
     return { ok: false, error: 'CRM not configured (CRM_API_BASE_URL / WEEKLY_REPORT_API_TOKEN)' };
   }
@@ -77,10 +80,13 @@ async function crmFetch<T>(pathAndQuery: string): Promise<CrmResult<T | null>> {
 
   try {
     const res = await fetch(url, {
+      method: opts?.method ?? 'GET',
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${WEEKLY_REPORT_API_TOKEN}`,
+        ...(opts?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       },
+      ...(opts?.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
       cache: 'no-store',
       signal: controller.signal,
     });
@@ -127,4 +133,47 @@ export async function getReportListing(
   listingId: string,
 ): Promise<CrmResult<ReportListing | null>> {
   return crmFetch<ReportListing>(`/api/report/listings/${encodeURIComponent(listingId)}`);
+}
+
+/** Payload for recording a sent-report against a CRM listing. */
+export interface SentReportInput {
+  /** Resolve target: address (preferred) and/or vaultId; or an explicit listingId. */
+  address?: string | null;
+  vaultId?: string | null;
+  listingId?: string | null;
+  weekEnding: string; // YYYY-MM-DD
+  status: 'approved' | 'sent';
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  sentAt?: string | null;
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  portalUrl?: string | null;
+  channel?: string | null;
+}
+
+/**
+ * Record (upsert) a sent-report in the CRM — the app's only write. Server-side,
+ * Bearer-authed via crmFetch. Never throws: returns a typed failure so the
+ * approve/send paths stay non-blocking and best-effort (KTD4).
+ */
+export async function recordSentReport(
+  input: SentReportInput,
+): Promise<CrmResult<unknown>> {
+  return crmFetch<unknown>(`/api/report/sent-reports`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+/**
+ * List every active listing for the agency (the dashboard's listing set).
+ * Each entry is the same shape as getReportListing. Returns an empty array
+ * (not null) when the CRM has no active listings; ok:false when unreachable
+ * or unconfigured, so the caller can fall back to local data.
+ */
+export async function listAllListings(): Promise<CrmResult<ReportListing[]>> {
+  const res = await crmFetch<{ listings: ReportListing[] }>(`/api/report/listings`);
+  if (!res.ok) return res;
+  return { ok: true, data: res.data?.listings ?? [] };
 }

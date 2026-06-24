@@ -14,8 +14,10 @@
 import type { WeeklyDraft, FieldSource } from '@/lib/types';
 import type { ReportListing, CrmStat } from '@/lib/crm-client';
 
-/** Portal-split numeric fields: draft field <- statsByPortal[portal][metric]. */
-const PORTAL_FIELD_MAP: { field: keyof WeeklyDraft; portal: string; metric: string }[] = [
+/** Portal-split numeric fields: draft field <- statsByPortal[portal][metric].
+ *  Exported so the dashboard's CRM->VendorReport mapper reuses the same mapping
+ *  (the numeric field names are shared between WeeklyDraft and VendorReport). */
+export const PORTAL_FIELD_MAP: { field: keyof WeeklyDraft; portal: string; metric: string }[] = [
   { field: 'reaViews', portal: 'rea', metric: 'views' },
   { field: 'reaEnquiries', portal: 'rea', metric: 'enquiries' },
   { field: 'reaSaves', portal: 'rea', metric: 'saves' },
@@ -27,7 +29,7 @@ const PORTAL_FIELD_MAP: { field: keyof WeeklyDraft; portal: string; metric: stri
 ];
 
 /** Combined numeric fields: draft field <- stats[metric] (across all sources). */
-const COMBINED_FIELD_MAP: { field: keyof WeeklyDraft; metric: string }[] = [
+export const COMBINED_FIELD_MAP: { field: keyof WeeklyDraft; metric: string }[] = [
   { field: 'openHomeAttendees', metric: 'openHomes' },
   { field: 'privateInspections', metric: 'inspections' },
 ];

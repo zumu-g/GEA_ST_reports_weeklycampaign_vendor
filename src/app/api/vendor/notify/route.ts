@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { recordSentReportDelivery } from '@/lib/sent-report-sync';
 
 // POST /api/vendor/notify — send welcome or update email to a vendor
-// Body: { token, ownerName, ownerEmail, address, portalUrl, message? }
+// Body: { token, ownerName, ownerEmail, address, portalUrl, message?, weekEnding? }
+// When `weekEnding` is present the email is a weekly-report send, so the CRM
+// sent-report record is stamped `sent` (best-effort); welcome emails omit it.
 export async function POST(request: NextRequest) {
   const apiKey = process.env.RESEND_API_KEY;
 
@@ -11,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { ownerName, ownerEmail, address, portalUrl, message } = await request.json();
+    const { ownerName, ownerEmail, address, portalUrl, message, weekEnding } = await request.json();
 
     if (!ownerEmail || !portalUrl) {
       return NextResponse.json({ error: 'ownerEmail and portalUrl are required' }, { status: 400 });
@@ -74,6 +77,19 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Weekly-report send → stamp the CRM sent-report `sent` (best-effort,
+    // never blocks the email response). Welcome emails omit weekEnding.
+    if (weekEnding && address) {
+      await recordSentReportDelivery({
+        address,
+        weekEnding,
+        recipientName: ownerName ?? null,
+        recipientEmail: ownerEmail ?? null,
+        channel: 'email',
+        portalPath: portalUrl ? new URL(portalUrl).pathname : null,
+      });
     }
 
     return NextResponse.json({ sent: true, id: data?.id });

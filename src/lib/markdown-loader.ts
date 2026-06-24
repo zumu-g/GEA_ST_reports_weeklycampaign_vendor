@@ -223,7 +223,15 @@ function parseAddress(content: string): string {
 // --- File readers ---
 
 async function listPropertySlugs(): Promise<string[]> {
-  const entries = await fs.readdir(PROPERTIES_DIR, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await fs.readdir(PROPERTIES_DIR, { withFileTypes: true });
+  } catch (err) {
+    // A missing data dir (e.g. PROPERTIES_DIR unset on a deploy) is an empty
+    // state, not a crash — degrade to "no listings" so the app still renders.
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw err;
+  }
   return entries
     .filter(e => e.isDirectory() && !e.name.startsWith('_'))
     .map(e => e.name);

@@ -77,6 +77,26 @@ describe('crm-client (configured)', () => {
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error).toContain('CRM request failed');
   });
+
+  it('recordSentReport POSTs the payload with Bearer auth (happy path)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ record: { id: 'sr_1' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { recordSentReport } = await loadClient({ base: BASE, token: 'tok' });
+    const res = await recordSentReport({ address: '36 Mitre St', weekEnding: '2026-06-21', status: 'approved' });
+    expect(res.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${BASE}/api/report/sent-reports`);
+    expect((init as RequestInit).method).toBe('POST');
+    expect((init as RequestInit).headers).toMatchObject({ Authorization: 'Bearer tok', 'Content-Type': 'application/json' });
+    expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({ address: '36 Mitre St', status: 'approved' });
+  });
+
+  it('recordSentReport returns a typed failure on non-200 (no throw)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'Unauthorised' }, 401)));
+    const { recordSentReport } = await loadClient({ base: BASE, token: 'bad' });
+    const res = await recordSentReport({ address: 'x', weekEnding: '2026-06-21', status: 'sent' });
+    expect(res.ok).toBe(false);
+  });
 });
 
 describe('crm-client (not configured)', () => {

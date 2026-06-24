@@ -5,26 +5,45 @@ import RentalCard from "@/components/RentalCard";
 import WeeklyWorkflow from "@/components/WeeklyWorkflow";
 import { getAllProperties } from "@/lib/markdown-loader";
 import { propertyToVendorReport } from "@/lib/data-adapter";
-import { getAllWeeklyDrafts, getComingWeekEnding } from "@/lib/weekly-drafts";
+import { getAllWeeklyDrafts, getReportWeekEnding } from "@/lib/weekly-drafts";
 import { mockReports } from "@/lib/mock-data";
 import { getTokenForSlug } from "@/lib/vendor-tokens";
 import { getAllRentals } from "@/lib/rental-loader";
 import { getRentalTokenForSlug } from "@/lib/rental-tokens";
-import { WeeklyDraft } from "@/lib/types";
+import { WeeklyDraft, VendorReport } from "@/lib/types";
+import { isCrmConfigured, listAllListings } from "@/lib/crm-client";
+import { crmReportToVendorReport } from "@/lib/crm-report-to-report";
 import SectionHeading from "@/components/SectionHeading";
 
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  // Load properties from markdown files
-  const properties = await getAllProperties();
-  const markdownReports = properties.map(propertyToVendorReport);
+  // Listing set is CRM-first (works on Railway, where the local markdown data
+  // dir doesn't exist), then local markdown, then demo data as a last resort.
+  let reports: VendorReport[] | undefined;
+  let source: "crm" | "markdown" | "mock" = "markdown";
 
-  // Combine: markdown properties first, then mock data as fallback demo
-  const reports = markdownReports.length > 0 ? markdownReports : mockReports;
+  if (isCrmConfigured()) {
+    const crm = await listAllListings();
+    if (crm.ok && crm.data.length > 0) {
+      reports = crm.data.map(crmReportToVendorReport);
+      source = "crm";
+    }
+  }
+
+  if (!reports) {
+    const markdownReports = (await getAllProperties()).map(propertyToVendorReport);
+    if (markdownReports.length > 0) {
+      reports = markdownReports;
+      source = "markdown";
+    } else {
+      reports = mockReports;
+      source = "mock";
+    }
+  }
 
   // Load this week's drafts and map by property slug
-  const currentWeekEnding = getComingWeekEnding();
+  const currentWeekEnding = getReportWeekEnding();
   const weeklyDrafts = await getAllWeeklyDrafts(currentWeekEnding);
   const draftMap = new Map<string, WeeklyDraft>(weeklyDrafts.map((d) => [d.propertySlug, d]));
 
@@ -44,7 +63,7 @@ export default async function Dashboard() {
     year: "numeric",
   });
 
-  const usingMockData = markdownReports.length === 0;
+  const usingMockData = source === "mock";
 
   return (
     <div className="min-h-screen bg-background">

@@ -152,11 +152,22 @@ export async function approveWeeklyDraft(
   return approved;
 }
 
-export function getComingWeekEnding(): string {
-  const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
-  const daysToSunday = day === 0 ? 0 : 7 - day;
+/**
+ * The Sunday that ends the most recently completed week.
+ *
+ * Weekly reports are compiled on a Monday and cover the week that just
+ * finished, so we want the most recent Sunday on or before today — not the
+ * upcoming one. On Monday 22 Jun this returns 21 Jun.
+ *
+ * Date parts are read in local time (AEDT) to avoid the UTC off-by-one that
+ * `toISOString()` introduces in the morning.
+ */
+export function getReportWeekEnding(now: Date = new Date()): string {
+  const day = now.getDay(); // 0 = Sunday … 6 = Saturday
   const sunday = new Date(now);
-  sunday.setDate(now.getDate() + daysToSunday);
-  return sunday.toISOString().split('T')[0];
+  sunday.setDate(now.getDate() - day); // step back to this week's Sunday
+  const y = sunday.getFullYear();
+  const m = String(sunday.getMonth() + 1).padStart(2, '0');
+  const d = String(sunday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }

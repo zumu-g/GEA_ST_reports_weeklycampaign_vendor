@@ -166,6 +166,7 @@ npm run build  # production build
 - Markdown data layer for properties and rentals
 - Weekly draft workflow (create, edit, approve)
 - CRM-backed draft data: drafts pre-fill from the GEA_crmAI read API (gap-aware, per-field provenance, agent edits win); direct VaultRE integration retired
+- Sent-report log: on approve (and on send) the app writes a sent-report record to the CRM (`POST /api/report/sent-reports`, reusing `WEEKLY_REPORT_API_TOKEN`), surfaced on the CRM listing view. Best-effort/non-blocking — the app's only write to the CRM; the CRM still owns all stat ingestion. See `src/lib/sent-report-sync.ts`
 - PWA support (manifest, service worker, icons)
 - Full design polish pass: Gloock/Hanken Grotesk/Fira Mono type system, warm GEA palette, animated hero stat cards, reduced-motion accessible animations
 - Deterministic impeccable scan: clean (zero pattern flags)

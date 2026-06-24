@@ -18,13 +18,16 @@ interface RentalReportWizardProps {
 
 const STEPS = ['Property', 'Portal Stats', 'Applications', 'Inspections', 'Commentary', 'Generate'];
 
-function getComingWeekEnding(): string {
+// Sunday ending the most recently completed week (local time, no UTC shift).
+function getReportWeekEnding(): string {
   const now = new Date();
   const day = now.getDay();
-  const daysToSunday = day === 0 ? 0 : 7 - day;
   const sunday = new Date(now);
-  sunday.setDate(now.getDate() + daysToSunday);
-  return sunday.toISOString().split('T')[0];
+  sunday.setDate(now.getDate() - day);
+  const y = sunday.getFullYear();
+  const m = String(sunday.getMonth() + 1).padStart(2, '0');
+  const d = String(sunday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 const BLANK: RentalGenerateInput & { propertyId: string } = {
@@ -32,7 +35,7 @@ const BLANK: RentalGenerateInput & { propertyId: string } = {
   propertyAddress: '',
   landlordName: '',
   agent: 'Stuart Grant',
-  weekEnding: getComingWeekEnding(),
+  weekEnding: getReportWeekEnding(),
   leaseType: 'Private Rental',
   rentPw: '',
   daysListed: '0',

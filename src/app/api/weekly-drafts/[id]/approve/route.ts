@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseWeeklyDraftId, approveWeeklyDraft } from '@/lib/weekly-drafts';
+import { getTokenForSlug } from '@/lib/vendor-tokens';
+import { recordApprovedReport } from '@/lib/sent-report-sync';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -10,6 +12,17 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   const draft = await approveWeeklyDraft(parsed.slug, parsed.weekEnding);
   if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
+
+  // Record an `approved` sent-report in the CRM — best-effort, never blocks
+  // approval (KTD4). Listing resolved by address CRM-side.
+  const token = getTokenForSlug(draft.propertySlug);
+  await recordApprovedReport({
+    address: draft.propertyAddress,
+    weekEnding: draft.weekEnding,
+    approvedBy: draft.agent,
+    approvedAt: draft.approvedAt,
+    portalPath: token ? `/vendor/${token}` : null,
+  });
 
   return NextResponse.json(draft);
 }
