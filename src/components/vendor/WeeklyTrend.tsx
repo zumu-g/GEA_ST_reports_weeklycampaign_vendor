@@ -1,5 +1,6 @@
 import type { AnalyticsRow } from '@/lib/markdown-loader';
 import SectionHeading from '@/components/SectionHeading';
+import EmptyState from './EmptyState';
 
 interface Series {
   label: string;
@@ -70,7 +71,18 @@ function Sparkline({ series }: { series: Series }) {
  * chronological so the line reads left → right. Renders nothing with < 2 weeks.
  */
 export default function WeeklyTrend({ analytics }: { analytics: AnalyticsRow[] }) {
-  if (analytics.length < 2) return null;
+  // Brand-new listing (no analytics yet): stay silent — the Online Reach
+  // section is also empty, so a trend placeholder would be redundant.
+  if (analytics.length === 0) return null;
+  if (analytics.length < 2) {
+    return (
+      <EmptyState
+        label="Weekly Trend"
+        title="Your week-over-week trend appears after two weeks of data."
+        hint="We've captured your first week — check back next week to see the movement."
+      />
+    );
+  }
 
   const weeks = [...analytics].reverse();
   const views: Series = {

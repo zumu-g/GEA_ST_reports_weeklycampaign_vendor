@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { appendDocument, readDocuments, removeDocument } from '@/lib/markdown-loader';
 import { validateUpload, sanitiseFilename, generateStoredName } from '@/lib/documents';
-
-function authorised(request: NextRequest): boolean {
-  const expected = process.env.AGENT_API_KEY;
-  if (!expected) return false;
-  const header =
-    request.headers.get('x-agent-key') ||
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  return header === expected;
-}
+import { authorised } from '@/lib/agent-auth';
 
 // POST: agent uploads a document (multipart/form-data, field `file`).
 export async function POST(

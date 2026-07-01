@@ -13,15 +13,12 @@ export default function AnimatedNumber({ value, duration = 600, className }: Ani
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setDisplayed(value);
-      return;
-    }
-
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const start = performance.now();
 
     function tick(now: number) {
-      const t = Math.min((now - start) / duration, 1);
+      // Reduced motion: jump straight to the value on the first frame (t=1).
+      const t = reduce ? 1 : Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
       setDisplayed(Math.round(eased * value));
       if (t < 1) rafRef.current = requestAnimationFrame(tick);

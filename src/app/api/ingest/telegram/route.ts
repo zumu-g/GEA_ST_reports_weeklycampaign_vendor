@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveProperty } from '@/lib/property-registry';
 import { writeInspectionFile, appendActivity } from '@/lib/markdown-loader';
+import { ingestGuard } from '@/lib/agent-auth';
 
 // Splits "85 Centenary | note: spoke to buyer" or "#feed 85 Centenary spoke to buyer"
 // into { propertyText, note } if it is a free-form note rather than an inspection.
@@ -114,6 +115,8 @@ function parseTelegramMessage(message: string): {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = ingestGuard(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { message } = body;

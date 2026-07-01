@@ -51,7 +51,7 @@ export default function CampaignTimeline({ slug }: CampaignTimelineProps) {
     <section className="mb-8">
       <SectionHeading label="What's Next" count={tasks.length} />
       <ul className="bg-card-bg rounded border border-border overflow-hidden">
-        {tasks.map((task, i) => {
+        {tasks.map((task) => {
           const label = formatDueDate(task.dueDate);
           const colour = dueDateColour(task.dueDate);
           return (

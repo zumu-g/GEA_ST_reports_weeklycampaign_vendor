@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readNotes, appendNotes } from '@/lib/markdown-loader';
+import { authorised } from '@/lib/agent-auth';
 
 // Agent-only, private notes. Gated by AGENT_API_KEY. These are NOT exposed to
 // the vendor and deliberately do NOT write to the activity feed or comments.
-
-function authorised(request: NextRequest): boolean {
-  const expected = process.env.AGENT_API_KEY;
-  if (!expected) return false;
-  const header =
-    request.headers.get('x-agent-key') ||
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  return header === expected;
-}
 
 export async function GET(
   request: NextRequest,

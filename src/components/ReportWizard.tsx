@@ -803,7 +803,7 @@ export default function ReportWizard({
           <div className="space-y-5">
             <div>
               <SectionHeading label="realestate.com.au Stats" />
-              <p className="font-body text-sm text-muted -mt-3 mb-6">Enter this week's stats from REA. Optionally upload your CSV export and Claude will extract the numbers.</p>
+              <p className="font-body text-sm text-muted -mt-3 mb-6">Enter this week&apos;s stats from REA. Optionally upload your CSV export and Claude will extract the numbers.</p>
             </div>
             <StatBlock
               portal="rea"
@@ -820,7 +820,7 @@ export default function ReportWizard({
           <div className="space-y-5">
             <div>
               <SectionHeading label="domain.com.au Stats" />
-              <p className="font-body text-sm text-muted -mt-3 mb-6">Enter this week's stats from Domain. Optionally upload your CSV export.</p>
+              <p className="font-body text-sm text-muted -mt-3 mb-6">Enter this week&apos;s stats from Domain. Optionally upload your CSV export.</p>
             </div>
             <StatBlock
               portal="domain"
@@ -998,7 +998,7 @@ export default function ReportWizard({
               <div className="space-y-5">
                 <div>
                   <SectionHeading label="Ready to Generate" />
-                  <p className="font-body text-sm text-muted -mt-3 mb-6">Claude will read everything you've provided and write a professional vendor report narrative.</p>
+                  <p className="font-body text-sm text-muted -mt-3 mb-6">Claude will read everything you&apos;ve provided and write a professional vendor report narrative.</p>
                 </div>
 
                 <div className="bg-surface rounded-md border border-border p-5 space-y-2">

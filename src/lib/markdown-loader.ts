@@ -1,8 +1,20 @@
 import fs from 'fs/promises';
 import path from 'path';
-import matter from 'gray-matter';
+import { getStorage } from './storage';
 
 const PROPERTIES_DIR = process.env.PROPERTIES_DIR || '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_vendor_portal/properties';
+
+// Property slugs are the only client-supplied component of every filesystem
+// path under PROPERTIES_DIR. Some ingest routes accept a slug straight from the
+// request body, so an unvalidated slug like "../../etc" would let a caller read
+// or write outside the properties tree. Reject anything that isn't a plain slug.
+// ponytail: one guard at every write chokepoint beats sanitising each route.
+export function assertSafeSlug(slug: string): string {
+  if (typeof slug !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
+    throw new Error(`Invalid property slug: ${JSON.stringify(slug)}`);
+  }
+  return slug;
+}
 
 // --- Types ---
 
@@ -103,7 +115,7 @@ function markToStatus(mark: string): ChecklistStatus {
   return 'todo';
 }
 
-function parseChecklist(
+export function parseChecklist(
   content: string,
 ): { task: string; status: ChecklistStatus; done: boolean }[] {
   const items: { task: string; status: ChecklistStatus; done: boolean }[] = [];
@@ -122,7 +134,7 @@ function parseLatestUpdate(content: string): string {
   return match ? match[1].trim() : '';
 }
 
-function parseMarkdownTable(content: string, headerPattern: string): Record<string, string>[] {
+export function parseMarkdownTable(content: string, headerPattern: string): Record<string, string>[] {
   const lines = content.split('\n');
   let headerIndex = -1;
 
@@ -159,7 +171,7 @@ function parseMarkdownTable(content: string, headerPattern: string): Record<stri
   return rows;
 }
 
-function parseAnalyticsTable(content: string): AnalyticsRow[] {
+export function parseAnalyticsTable(content: string): AnalyticsRow[] {
   const rows = parseMarkdownTable(content, 'Week Ending');
   return rows
     .filter(r => r['Week Ending'] && r['Week Ending'].trim() !== '')
@@ -174,7 +186,7 @@ function parseAnalyticsTable(content: string): AnalyticsRow[] {
     }));
 }
 
-function parseInspectionsTable(content: string): InspectionRow[] {
+export function parseInspectionsTable(content: string): InspectionRow[] {
   const rows = parseMarkdownTable(content, 'Date');
   return rows
     .filter(r => r['Date'] && r['Date'].trim() !== '')
@@ -187,8 +199,7 @@ function parseInspectionsTable(content: string): InspectionRow[] {
     }));
 }
 
-function parseCommunicationsTable(content: string): CommunicationRow[] {
-  const rows = parseMarkdownTable(content, 'Date');
+export function parseCommunicationsTable(content: string): CommunicationRow[] {
   // Communications table might clash with inspections; use the one under ## Communications Log
   const commSection = content.split('## Communications Log')[1];
   if (!commSection) return [];
@@ -353,6 +364,7 @@ export async function createPropertyFolder(
     campaignType: string;
   }
 ): Promise<void> {
+  assertSafeSlug(slug);
   const propertyDir = path.join(PROPERTIES_DIR, slug);
 
   // Create subdirectories
@@ -428,8 +440,12 @@ export async function writeAnalyticsFile(
     searchAppearances?: number;
   }
 ): Promise<string> {
+  assertSafeSlug(slug);
   const sourceSlug = data.source.toLowerCase().includes('domain') ? 'domain' : 'rea';
-  const fileName = `${data.weekEnding}-${sourceSlug}.md`;
+  // weekEnding lands in the filename — strip anything that isn't date-safe so it
+  // can't be used as a second path-traversal lever (e.g. "../../x").
+  const weekSafe = String(data.weekEnding).replace(/[^0-9-]/g, '');
+  const fileName = `${weekSafe}-${sourceSlug}.md`;
   const dirPath = path.join(PROPERTIES_DIR, slug, 'analytics');
   await fs.mkdir(dirPath, { recursive: true });
   const filePath = path.join(dirPath, fileName);
@@ -468,8 +484,10 @@ export async function writeInspectionFile(
     notes: string;
   }
 ): Promise<string> {
+  assertSafeSlug(slug);
   const typeSlug = data.type.toLowerCase().includes('private') ? 'private' : 'open';
-  const fileName = `${data.date}-${typeSlug}.md`;
+  const dateSafe = String(data.date).replace(/[^0-9-]/g, '');
+  const fileName = `${dateSafe}-${typeSlug}.md`;
   const dirPath = path.join(PROPERTIES_DIR, slug, 'inspections');
   await fs.mkdir(dirPath, { recursive: true });
   const filePath = path.join(dirPath, fileName);
@@ -503,6 +521,7 @@ async function appendToPropertyTable(
   type: 'analytics' | 'inspection',
   data: Record<string, unknown>
 ): Promise<void> {
+  assertSafeSlug(slug);
   const propertyPath = path.join(PROPERTIES_DIR, slug, 'PROPERTY.md');
 
   try {
@@ -714,6 +733,7 @@ export async function setChecklistItem(
   label: string,
   status: ChecklistStatus | boolean,
 ): Promise<boolean> {
+  assertSafeSlug(slug);
   const targetStatus: ChecklistStatus =
     typeof status === 'boolean' ? (status ? 'done' : 'todo') : status;
   const mark = STATUS_TO_MARK[targetStatus];
@@ -795,21 +815,12 @@ function randomId(): string {
 }
 
 async function readJsonSidecar<T>(slug: string, file: string): Promise<T[]> {
-  const filePath = path.join(PROPERTIES_DIR, slug, file);
-  try {
-    const raw = await fs.readFile(filePath, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return getStorage().readList<T>(`${slug}/${file}`);
 }
 
 async function writeJsonSidecar<T>(slug: string, file: string, items: T[]): Promise<void> {
-  const dir = path.join(PROPERTIES_DIR, slug);
-  await fs.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, file);
-  await fs.writeFile(filePath, JSON.stringify(items, null, 2) + '\n', 'utf-8');
+  assertSafeSlug(slug);
+  await getStorage().writeList<T>(`${slug}/${file}`, items);
 }
 
 export async function readActivity(slug: string): Promise<ActivityEvent[]> {
@@ -904,6 +915,7 @@ export interface DocumentMeta {
 }
 
 function documentsDir(slug: string): string {
+  assertSafeSlug(slug);
   return path.join(PROPERTIES_DIR, slug, 'documents');
 }
 

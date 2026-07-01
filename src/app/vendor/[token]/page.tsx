@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getPropertySlugForToken } from '@/lib/vendor-tokens';
+import { SectionSkeleton } from '@/components/vendor/DashboardSkeleton';
 import { getProperty } from '@/lib/markdown-loader';
 import VendorHeader from '@/components/vendor/VendorHeader';
 import CampaignChecklist from '@/components/vendor/CampaignChecklist';
@@ -371,8 +373,12 @@ export default async function VendorDashboard({
           {/* Two-way Messages */}
           <CommentThread token={token} />
 
-          {/* Local Market (just sold + just listed within 500m) */}
-          <LocalMarket address={property.address} suburb={localitySuburb} />
+          {/* Local Market (just sold + just listed within 500m). Hits an
+              external market lookup, so stream it — the rest of the page
+              paints immediately and this fills in a beat later. */}
+          <Suspense fallback={<SectionSkeleton lines={4} />}>
+            <LocalMarket address={property.address} suburb={localitySuburb} />
+          </Suspense>
 
           {/* Seller Guides */}
           <GuidesSpotlight token={token} />

@@ -1,4 +1,6 @@
 import { readOpens, OpenEntry } from '@/lib/markdown-loader';
+import { nowMs, today } from '@/lib/clock';
+import EmptyState from './EmptyState';
 import IcsDownload from './IcsDownload';
 import SectionHeading from '@/components/SectionHeading';
 
@@ -42,14 +44,22 @@ function calendarGrid(opens: OpenEntry[]) {
 export default async function UpcomingOpens({ slug }: { slug: string }) {
   const all = await readOpens(slug);
   const upcoming = all
-    .filter(o => new Date(o.start).getTime() >= Date.now())
+    .filter(o => new Date(o.start).getTime() >= nowMs())
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
     .slice(0, 4);
 
-  if (!upcoming.length) return null;
+  if (!upcoming.length) {
+    return (
+      <EmptyState
+        label="Upcoming Opens"
+        title="No open homes scheduled yet."
+        hint="Your agent will list inspection times here as they're booked."
+      />
+    );
+  }
 
   const cells = calendarGrid(all);
-  const monthLabel = new Date().toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+  const monthLabel = today().toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
 
   return (
     <section className="mb-12">

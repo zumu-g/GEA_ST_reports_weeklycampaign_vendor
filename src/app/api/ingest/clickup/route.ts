@@ -103,6 +103,11 @@ export async function POST(request: NextRequest) {
     if (!verifySignature(raw, sig, secret)) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
+  } else if (process.env.NODE_ENV === 'production') {
+    // Fail closed: never accept unsigned webhooks in production. Without this,
+    // a deploy that forgot CLICKUP_WEBHOOK_SECRET would let anyone inject
+    // activity-feed entries. Local/dev (no secret) stays open for convenience.
+    return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 503 });
   }
 
   let body: ClickUpWebhookBody;
