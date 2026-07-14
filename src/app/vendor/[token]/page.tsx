@@ -25,6 +25,12 @@ import TrendBadge from '@/components/vendor/TrendBadge';
 import WeeklyTrend from '@/components/vendor/WeeklyTrend';
 import { getDailyQuote } from '@/lib/quotes';
 
+// Property markdown is the live record and is read fresh on every request
+// (no ISR/ unstable_cache in getProperty) — pin this explicitly so a future
+// Next.js default or an added cache directive can't silently make edits stop
+// showing up without a rebuild.
+export const dynamic = 'force-dynamic';
+
 function calcDaysOnMarket(listed: string, weekEnding?: string): number {
   if (!listed) return 0;
   const parsed = new Date(listed);
