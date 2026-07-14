@@ -4,7 +4,9 @@ import SectionHeading from '@/components/SectionHeading';
 const sourceLabels: Record<TimelineEntry['source'], { label: string; dot: string }> = {
   clickup: { label: 'Campaign', dot: 'bg-blue-500' },
   telegram: { label: 'Note', dot: 'bg-sky-500' },
+  whatsapp: { label: 'WhatsApp', dot: 'bg-green-500' },
   analytics: { label: 'Report', dot: 'bg-emerald-500' },
+  enrichment: { label: 'Market Data', dot: 'bg-purple-500' },
   inspection: { label: 'Inspection', dot: 'bg-amber-500' },
   comment: { label: 'Comment', dot: 'bg-accent' },
 };

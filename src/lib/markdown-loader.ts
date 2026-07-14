@@ -797,7 +797,7 @@ export async function setChecklistItem(
 
 // --- Activity feed + comments (JSON sidecars) ---
 
-export type ActivitySource = 'clickup' | 'telegram' | 'analytics' | 'inspection' | 'comment';
+export type ActivitySource = 'clickup' | 'telegram' | 'whatsapp' | 'analytics' | 'enrichment' | 'inspection' | 'comment';
 
 export interface ActivityEvent {
   id: string;
