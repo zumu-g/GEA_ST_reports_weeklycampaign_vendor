@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  // Standalone output for the Railway/Docker deploy — bundles only the
+  // traced production dependencies into .next/standalone, keeping the
+  // container image small.
+  output: "standalone",
   turbopack: {
     root: path.resolve(__dirname),
   },
