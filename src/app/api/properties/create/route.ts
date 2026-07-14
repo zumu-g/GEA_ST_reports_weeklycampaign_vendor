@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPropertyFolder } from '@/lib/markdown-loader';
 import { assignToken } from '@/lib/vendor-tokens';
+import { authorised } from '@/lib/agent-auth';
 
 function slugify(address: string): string {
   return address
@@ -12,6 +13,9 @@ function slugify(address: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  if (!authorised(request)) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { address, owner, contact, listed, priceGuide, campaignType } = body;
