@@ -39,15 +39,19 @@ describe('proxy', () => {
     expect(res.status).not.toBe(307);
   });
 
-  it('returns 401 JSON for an unauthenticated API request', () => {
+  // Matched API routes (properties/create, agent/*) always pass through the
+  // proxy unconditionally — they gate themselves via authorised(), which
+  // does the real header/cookie validation. A proxy-level presence-only
+  // check would misleadingly look like a real gate without being one.
+  it('passes through a matched API route with no auth at all (route gates itself)', () => {
     process.env.AGENT_API_KEY = 'secret';
     const res = proxy(apiReq('/api/properties/create'));
-    expect(res.status).toBe(401);
+    expect(res.status).not.toBe(401);
   });
 
-  it('allows an API request with a valid x-agent-key header (no cookie needed)', () => {
+  it('passes through a matched API route with a wrong key (route rejects it, not the proxy)', () => {
     process.env.AGENT_API_KEY = 'secret';
-    const res = proxy(apiReq('/api/properties/create', { 'x-agent-key': 'secret' }));
+    const res = proxy(apiReq('/api/properties/create', { 'x-agent-key': 'wrong' }));
     expect(res.status).not.toBe(401);
   });
 });

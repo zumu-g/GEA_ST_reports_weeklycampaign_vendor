@@ -14,19 +14,13 @@ const PUBLIC_ADMIN_PATHS = ['/admin/login'];
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isApiRoute = pathname.startsWith('/api/');
-  if (isApiRoute) {
-    // API routes call authorised() themselves (header OR cookie) — the proxy
-    // only needs to short-circuit unauthenticated requests before they reach
-    // route handlers that don't already guard themselves, e.g.
-    // /api/properties/create, which historically had no auth at all.
-    const cookie = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-    const hasHeaderKey = Boolean(
-      request.headers.get('x-agent-key') || request.headers.get('authorization')
-    );
-    if (!hasHeaderKey && !verifyAdminSession(cookie)) {
-      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-    }
+  // API routes call authorised() themselves (header OR cookie) with the real
+  // key/signature check — every matched route (properties/create, agent/*)
+  // already gates itself. A proxy-level pre-check here could only validate
+  // header *presence*, not correctness, which would silently no-op for a
+  // present-but-wrong key; that's worse than no check, since it reads as a
+  // real gate without being one. Pass through and let the route decide.
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 

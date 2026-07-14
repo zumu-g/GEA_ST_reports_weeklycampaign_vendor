@@ -19,12 +19,20 @@ function emptyTwiml(): NextResponse {
 // a Telegram bot only the agent/vendor know the handle for. Twilio's
 // signature proves the request came from Twilio — it says nothing about who
 // sent the message — so senders must also be allowlisted.
+//
+// Twilio's `From` for a WhatsApp message is always channel-prefixed, e.g.
+// "whatsapp:+61400000000" — strip it so WHATSAPP_ALLOWED_SENDERS can be
+// configured as plain E.164 numbers.
+function stripWhatsappPrefix(from: string): string {
+  return from.replace(/^whatsapp:/i, '');
+}
+
 function isAllowedSender(from: string): boolean {
   const allowed = (process.env.WHATSAPP_ALLOWED_SENDERS || '')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  return allowed.includes(from);
+  return allowed.includes(stripWhatsappPrefix(from));
 }
 
 export async function POST(request: NextRequest) {
@@ -50,8 +58,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const from = params.From || '';
-  if (!isAllowedSender(from)) {
+  const from = stripWhatsappPrefix(params.From || '');
+  if (!isAllowedSender(params.From || '')) {
     return emptyTwiml();
   }
 

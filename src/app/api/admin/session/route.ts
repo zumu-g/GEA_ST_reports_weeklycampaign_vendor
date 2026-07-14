@@ -14,7 +14,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Admin login not configured' }, { status: 503 });
   }
 
-  const { key } = await request.json();
+  let key: unknown;
+  try {
+    ({ key } = await request.json());
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   if (typeof key !== 'string' || !safeEqual(key, expected)) {
     await loginDelay();
     return NextResponse.json({ error: 'Invalid key' }, { status: 401 });

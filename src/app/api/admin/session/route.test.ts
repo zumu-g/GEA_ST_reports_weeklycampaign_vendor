@@ -38,6 +38,17 @@ describe('POST /api/admin/session', () => {
     const res = await POST(loginReq('anything'));
     expect(res.status).toBe(503);
   });
+
+  it('returns 400 (not an unhandled throw) for a malformed body', async () => {
+    process.env.AGENT_API_KEY = 'secret';
+    const req = new NextRequest('http://localhost/api/admin/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'not json',
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('DELETE /api/admin/session', () => {

@@ -8,7 +8,11 @@ import { computeTwilioSignature, signedUrlForPath } from '@/lib/twilio-signature
 import { readActivity } from '@/lib/markdown-loader';
 
 const SLUG = '85-centenary-blvd-officer-south';
-const FROM = '+61400111222';
+// Twilio's real wire format for a WhatsApp message channel-prefixes `From`,
+// e.g. "whatsapp:+61400111222" — WHATSAPP_ALLOWED_SENDERS is configured with
+// the bare number, and the route must strip the prefix before comparing.
+const BARE_NUMBER = '+61400111222';
+const FROM = `whatsapp:${BARE_NUMBER}`;
 const TOKEN = 'test-twilio-token';
 
 const origPropertiesDir = process.env.PROPERTIES_DIR;
@@ -21,7 +25,7 @@ beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'gea-whatsapp-'));
   process.env.PROPERTIES_DIR = tmp;
   process.env.TWILIO_AUTH_TOKEN = TOKEN;
-  process.env.WHATSAPP_ALLOWED_SENDERS = FROM;
+  process.env.WHATSAPP_ALLOWED_SENDERS = BARE_NUMBER;
   process.env.NEXT_PUBLIC_BASE_URL = 'https://portal.grantsea.com.au';
   await fs.mkdir(path.join(tmp, SLUG), { recursive: true });
 });
@@ -54,6 +58,8 @@ describe('POST /api/ingest/whatsapp', () => {
     expect(activity).toHaveLength(1);
     expect(activity[0].source).toBe('whatsapp');
     expect(activity[0].summary).toBe('buyer called');
+    // actor is the whatsapp:-stripped bare number, not the raw Twilio From
+    expect(activity[0].actor).toBe(BARE_NUMBER);
   });
 
   it('writes an inspection file for shorthand body', async () => {
