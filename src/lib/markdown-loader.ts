@@ -609,6 +609,73 @@ async function appendToPropertyTable(
   }
 }
 
+// Escapes markdown table-breaking characters in externally-sourced cell
+// values (pipes, newlines, angle brackets) before splicing them into
+// PROPERTY.md. This data crosses a trust boundary — an external API
+// response — so a malformed or hostile value must not corrupt the table
+// structure or inject content into the vendor-rendered page.
+function escapeTableCell(value: string): string {
+  return String(value)
+    .replace(/\|/g, '\\|')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Rewrites a two-line-header markdown table under the given `## heading` in
+ * PROPERTY.md with new rows, generalising appendToPropertyTable's
+ * header-matching string-splice approach for sections that get replaced
+ * wholesale (e.g. "Just Listed Nearby") rather than appended row-by-row.
+ * If the heading is missing entirely, it is appended to the end of the file
+ * rather than silently no-op'ing (the failure mode appendToPropertyTable has
+ * for a missing header).
+ */
+export async function updatePropertySection(
+  slug: string,
+  heading: string,
+  headerLine: string,
+  rows: string[][]
+): Promise<void> {
+  assertSafeSlug(slug);
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
+
+  let content: string;
+  try {
+    content = await fs.readFile(propertyPath, 'utf-8');
+  } catch {
+    return; // Property file may not exist yet
+  }
+
+  const columnCount = headerLine.split('|').length - 2;
+  const separatorLine = '|' + Array(columnCount).fill('---').join('|') + '|';
+  const body = rows.length > 0
+    ? rows.map(row => '| ' + row.map(escapeTableCell).join(' | ') + ' |').join('\n')
+    : `| No recent nearby activity${' |'.repeat(columnCount - 1)} |`;
+
+  const headingMarker = `## ${heading}`;
+  const headingIdx = content.indexOf(headingMarker);
+
+  if (headingIdx === -1) {
+    // Heading missing entirely — append a new section rather than silently
+    // no-op'ing, which is the fragility appendToPropertyTable has today.
+    const newSection = `\n## ${heading}\n${headerLine}\n${separatorLine}\n${body}\n`;
+    await fs.writeFile(propertyPath, content.trimEnd() + '\n' + newSection, 'utf-8');
+    return;
+  }
+
+  // Find the table under this heading and replace its rows through to the
+  // next heading (or end of file).
+  const afterHeadingLine = content.indexOf('\n', headingIdx) + 1;
+  const nextHeadingIdx = content.indexOf('\n## ', afterHeadingLine);
+  const sectionEnd = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
+
+  const newSectionBody = `${headerLine}\n${separatorLine}\n${body}\n`;
+  content = content.substring(0, afterHeadingLine) + newSectionBody + content.substring(sectionEnd);
+
+  await fs.writeFile(propertyPath, content, 'utf-8');
+}
+
 // --- Stats sidecar (denormalised weekly snapshots from REA/Domain) ---
 
 export interface StatsRow {
