@@ -18,7 +18,7 @@ export interface StorageDriver {
 function propertiesDir(): string {
   return (
     process.env.PROPERTIES_DIR ||
-    '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_vendor_portal/properties'
+    '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_ST_vendor_portal/properties'
   );
 }
 

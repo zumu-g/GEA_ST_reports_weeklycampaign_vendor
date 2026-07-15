@@ -6,9 +6,14 @@ import { propertyToVendorReport } from '@/lib/data-adapter';
 import { resolveListing, getReportListing } from '@/lib/crm-client';
 import { applyCrmToDraft } from '@/lib/crm-draft-mapper';
 
-const PROPERTIES_DIR =
-  process.env.PROPERTIES_DIR ||
-  '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_vendor_portal/properties';
+// Read per-call (not at module load) so PROPERTIES_DIR overrides take effect —
+// matches markdown-loader.ts / storage.ts read timing.
+function propertiesDir(): string {
+  return (
+    process.env.PROPERTIES_DIR ||
+    '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_ST_vendor_portal/properties'
+  );
+}
 
 export function makeWeeklyDraftId(slug: string, weekEnding: string): string {
   return `${slug}--${weekEnding}`;
@@ -24,7 +29,7 @@ export function parseWeeklyDraftId(id: string): { slug: string; weekEnding: stri
 }
 
 function getDraftPath(slug: string, weekEnding: string): string {
-  return path.join(PROPERTIES_DIR, slug, 'weekly', `${weekEnding}.json`);
+  return path.join(propertiesDir(), slug, 'weekly', `${weekEnding}.json`);
 }
 
 export async function getWeeklyDraft(slug: string, weekEnding: string): Promise<WeeklyDraft | null> {

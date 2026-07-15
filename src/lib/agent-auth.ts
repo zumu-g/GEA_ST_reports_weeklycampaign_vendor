@@ -4,7 +4,7 @@ import crypto from 'crypto';
 // Constant-time comparison so an attacker can't recover the key byte-by-byte
 // from response timing. timingSafeEqual requires equal-length buffers, so the
 // length pre-check is intentional (and itself leaks only length, not content).
-function safeEqual(a: string, b: string): boolean {
+export function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
   const bb = Buffer.from(b);
   if (ab.length !== bb.length) return false;
@@ -19,12 +19,48 @@ function headerKey(request: NextRequest, name: string): string {
   );
 }
 
+export const ADMIN_SESSION_COOKIE = 'gea_admin_session';
+// 7 days — long enough that the agent isn't re-logging-in constantly, short
+// enough that a leaked cookie isn't a permanent credential.
+export const ADMIN_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Cookie value is `HMAC(AGENT_API_KEY, issuedAt) + '.' + issuedAt`, never the
+// raw key — and carrying issuedAt is what lets the session actually expire;
+// a static HMAC with no timestamp would be a permanent credential revocable
+// only by rotating AGENT_API_KEY.
+export function signAdminSession(issuedAt: number): string {
+  const expected = process.env.AGENT_API_KEY;
+  if (!expected) throw new Error('AGENT_API_KEY not configured');
+  const mac = crypto.createHmac('sha256', expected).update(String(issuedAt)).digest('hex');
+  return `${mac}.${issuedAt}`;
+}
+
+export function verifyAdminSession(cookieValue: string | undefined | null): boolean {
+  if (!cookieValue) return false;
+  const expected = process.env.AGENT_API_KEY;
+  if (!expected) return false;
+
+  const dot = cookieValue.lastIndexOf('.');
+  if (dot === -1) return false;
+  const mac = cookieValue.slice(0, dot);
+  const issuedAtStr = cookieValue.slice(dot + 1);
+  const issuedAt = Number(issuedAtStr);
+  if (!Number.isFinite(issuedAt)) return false;
+
+  if (Date.now() - issuedAt > ADMIN_SESSION_MAX_AGE_MS) return false;
+
+  const expectedMac = crypto.createHmac('sha256', expected).update(issuedAtStr).digest('hex');
+  return safeEqual(mac, expectedMac);
+}
+
 // Agent/admin-only endpoints. Fails closed: if AGENT_API_KEY is unset, no
-// request is authorised. Accepts either `x-agent-key` or a Bearer token.
+// request is authorised. Accepts an `x-agent-key`/Bearer header (scripts,
+// CRM) OR a valid, non-expired admin session cookie (browser /admin pages).
 export function authorised(request: NextRequest): boolean {
   const expected = process.env.AGENT_API_KEY;
   if (!expected) return false;
-  return safeEqual(headerKey(request, 'x-agent-key'), expected);
+  if (safeEqual(headerKey(request, 'x-agent-key'), expected)) return true;
+  return verifyAdminSession(request.cookies.get(ADMIN_SESSION_COOKIE)?.value);
 }
 
 // Ingest endpoints (Open Claw / CRM pipeline). Mirrors the ClickUp webhook
