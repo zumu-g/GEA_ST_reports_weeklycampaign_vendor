@@ -4,6 +4,30 @@
  * channels parse identically instead of maintaining two copies.
  */
 
+// Matches "Add this article link and summary to all property reports this week
+// https://... \n<title>\n<summary>". Checked before parseFreeformNote /
+// parseTelegramMessage so it can't be shadowed by (or shadow) them — the
+// trigger phrase makes this far more specific than either.
+const URL_RE = /(https?:\/\/\S+)/;
+
+export function parseArticleBroadcast(
+  message: string
+): { url: string; title?: string; note?: string } | null {
+  if (!/^\s*add this article/i.test(message)) return null;
+
+  const urlMatch = message.match(URL_RE);
+  if (!urlMatch) return null;
+  const url = urlMatch[1];
+
+  const after = message.slice(urlMatch.index! + url.length);
+  const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return { url };
+
+  const [title, ...rest] = lines;
+  const note = rest.join(' ');
+  return note ? { url, title, note } : { url, title };
+}
+
 // Splits "85 Centenary | note: spoke to buyer" or "#feed 85 Centenary spoke to buyer"
 // into { propertyText, note } if it is a free-form note rather than an inspection.
 export function parseFreeformNote(message: string): { propertyText: string; note: string; sender?: string } | null {
