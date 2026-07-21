@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveProperty } from '@/lib/property-registry';
 import { writeInspectionFile, appendActivity } from '@/lib/markdown-loader';
 import { ingestGuard } from '@/lib/agent-auth';
-import { parseFreeformNote, parseTelegramMessage } from '@/lib/message-parsers';
+import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage } from '@/lib/message-parsers';
+import { fetchArticleMeta } from '@/lib/article-meta';
+import { broadcastArticleToAllDrafts, getReportWeekEnding } from '@/lib/weekly-drafts';
 
 export async function POST(request: NextRequest) {
   const denied = ingestGuard(request);
@@ -13,6 +15,43 @@ export async function POST(request: NextRequest) {
 
     if (!message) {
       return NextResponse.json({ error: 'Missing message field' }, { status: 400 });
+    }
+
+    // Article-broadcast path — checked first, ahead of the note/inspection
+    // parsers, since its trigger phrase is far more specific than either.
+    const broadcast = parseArticleBroadcast(message);
+    if (broadcast) {
+      let { title, note } = broadcast;
+      if (!title) {
+        const meta = await fetchArticleMeta(broadcast.url);
+        if (!meta) {
+          return NextResponse.json(
+            {
+              error: 'Could not determine the article title/summary',
+              hint: 'Resend with a title and summary line after the link.',
+              url: broadcast.url,
+            },
+            { status: 422 }
+          );
+        }
+        title = meta.title;
+        note = meta.note;
+      }
+
+      const weekEnding = getReportWeekEnding();
+      const { updated, skipped } = await broadcastArticleToAllDrafts(
+        { title, url: broadcast.url, note: note || '' },
+        weekEnding
+      );
+
+      return NextResponse.json({
+        success: true,
+        kind: 'article-broadcast',
+        article: { title, url: broadcast.url, note: note || '' },
+        weekEnding,
+        updated,
+        skipped,
+      });
     }
 
     // Free-form note path — write to activity feed, not inspection log
