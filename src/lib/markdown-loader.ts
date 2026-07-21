@@ -676,6 +676,52 @@ export async function updatePropertySection(
   await fs.writeFile(propertyPath, content, 'utf-8');
 }
 
+// Merges newsArticles from an approved WeeklyDraft into the property's
+// "## Market News" bullet section (U5) — this is the only write path that
+// makes newsArticles reach the vendor portal, since the portal renders
+// `news` parsed straight from PROPERTY.md, not from the WeeklyDraft JSON.
+// Dedupes by url against what's already in the section.
+export async function appendMarketNews(
+  slug: string,
+  articles: { title: string; url: string; note: string }[]
+): Promise<void> {
+  assertSafeSlug(slug);
+  if (articles.length === 0) return;
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
+
+  let content: string;
+  try {
+    content = await fs.readFile(propertyPath, 'utf-8');
+  } catch {
+    return; // Property file may not exist yet
+  }
+
+  const existing = parseMarketNews(content);
+  const seen = new Set(existing.map(n => n.url));
+  const merged = [...existing];
+  for (const a of articles) {
+    if (seen.has(a.url)) continue;
+    seen.add(a.url);
+    merged.push({ title: a.title, url: a.url, summary: a.note });
+  }
+  if (merged.length === existing.length) return; // nothing new to write
+
+  const bullets = merged.map(n => `- [${n.title}](${n.url}) — ${n.summary}`).join('\n');
+  const headingMarker = '## Market News';
+  const headingIdx = content.indexOf(headingMarker);
+
+  if (headingIdx === -1) {
+    await fs.writeFile(propertyPath, content.trimEnd() + `\n\n${headingMarker}\n${bullets}\n`, 'utf-8');
+    return;
+  }
+
+  const afterHeadingLine = content.indexOf('\n', headingIdx) + 1;
+  const nextHeadingIdx = content.indexOf('\n## ', afterHeadingLine);
+  const sectionEnd = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
+  content = content.substring(0, afterHeadingLine) + bullets + '\n' + content.substring(sectionEnd);
+  await fs.writeFile(propertyPath, content, 'utf-8');
+}
+
 // --- Stats sidecar (denormalised weekly snapshots from REA/Domain) ---
 
 export interface StatsRow {
