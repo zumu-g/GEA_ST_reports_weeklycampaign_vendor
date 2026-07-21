@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { assignToken, revokeToken, getAllTokens, getTokenForSlug } from '@/lib/vendor-tokens';
+import { authorised } from '@/lib/agent-auth';
 
-// GET /api/vendor/tokens — list all tokens (internal use)
-export async function GET() {
+// GET /api/vendor/tokens — list all tokens. Admin-only: this map is the master
+// key to every vendor's data, so it must never be served unauthenticated.
+export async function GET(request: NextRequest) {
+  if (!authorised(request)) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
   const tokens = getAllTokens();
   return NextResponse.json({ tokens });
 }
@@ -10,6 +15,9 @@ export async function GET() {
 // POST /api/vendor/tokens — assign or regenerate token for a property slug
 // Body: { slug: string, regenerate?: boolean }
 export async function POST(request: NextRequest) {
+  if (!authorised(request)) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
   try {
     const { slug, regenerate } = await request.json();
 

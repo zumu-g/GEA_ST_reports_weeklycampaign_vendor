@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPropertyFolder } from '@/lib/markdown-loader';
 import { assignToken } from '@/lib/vendor-tokens';
+import { authorised } from '@/lib/agent-auth';
 
 function slugify(address: string): string {
   return address
@@ -12,6 +13,9 @@ function slugify(address: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  if (!authorised(request)) {
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { address, owner, contact, listed, priceGuide, campaignType } = body;
@@ -20,7 +24,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'address and owner are required' }, { status: 400 });
     }
 
-    const slug = body.slug || slugify(address);
+    // Always slugify, even a client-supplied slug, so it can't carry path
+    // traversal (e.g. "../../etc") into createPropertyFolder's filesystem path.
+    const slug = slugify(body.slug || address);
 
     await createPropertyFolder(slug, { address, owner, contact: contact || '', listed: listed || '', priceGuide: priceGuide || 'TBC', campaignType: campaignType || 'Private Sale' });
 

@@ -6,9 +6,14 @@ import { propertyToVendorReport } from '@/lib/data-adapter';
 import { resolveListing, getReportListing } from '@/lib/crm-client';
 import { applyCrmToDraft } from '@/lib/crm-draft-mapper';
 
-const PROPERTIES_DIR =
-  process.env.PROPERTIES_DIR ||
-  '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_vendor_portal/properties';
+// Read per-call (not at module load) so PROPERTIES_DIR overrides take effect —
+// matches markdown-loader.ts / storage.ts read timing.
+function propertiesDir(): string {
+  return (
+    process.env.PROPERTIES_DIR ||
+    '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_ST_vendor_portal/properties'
+  );
+}
 
 export function makeWeeklyDraftId(slug: string, weekEnding: string): string {
   return `${slug}--${weekEnding}`;
@@ -24,7 +29,7 @@ export function parseWeeklyDraftId(id: string): { slug: string; weekEnding: stri
 }
 
 function getDraftPath(slug: string, weekEnding: string): string {
-  return path.join(PROPERTIES_DIR, slug, 'weekly', `${weekEnding}.json`);
+  return path.join(propertiesDir(), slug, 'weekly', `${weekEnding}.json`);
 }
 
 export async function getWeeklyDraft(slug: string, weekEnding: string): Promise<WeeklyDraft | null> {
@@ -133,6 +138,46 @@ export async function generateAllWeeklyDrafts(
   }
 
   return { created, skipped, drafts: results };
+}
+
+/**
+ * Broadcasts one article to every sales property's current-week draft (U3),
+ * generating a draft on the fly for any property that doesn't have one yet.
+ * Dedupes by URL so re-sending the same article is a no-op per property.
+ */
+export async function broadcastArticleToAllDrafts(
+  article: { title: string; url: string; note: string },
+  weekEnding: string
+): Promise<{ updated: string[]; skipped: string[] }> {
+  const properties = await getAllProperties();
+  const updated: string[] = [];
+  const skipped: string[] = [];
+
+  await Promise.all(
+    properties.map(async (property) => {
+      try {
+        const draft =
+          (await getWeeklyDraft(property.slug, weekEnding)) ??
+          (await generateWeeklyDraftForProperty(property.slug, weekEnding));
+
+        if (draft.newsArticles.some((a) => a.url === article.url)) {
+          skipped.push(property.slug);
+          return;
+        }
+
+        const newsArticles = [
+          ...draft.newsArticles,
+          { id: `${property.slug}-${draft.newsArticles.length}-${Date.now()}`, ...article },
+        ];
+        await saveWeeklyDraft({ ...draft, newsArticles });
+        updated.push(property.slug);
+      } catch {
+        skipped.push(property.slug);
+      }
+    })
+  );
+
+  return { updated, skipped };
 }
 
 export async function approveWeeklyDraft(

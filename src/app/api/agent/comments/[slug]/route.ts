@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { appendComment, appendActivity } from '@/lib/markdown-loader';
-
-function authorised(request: NextRequest): boolean {
-  const expected = process.env.AGENT_API_KEY;
-  if (!expected) return false;
-  const header = request.headers.get('x-agent-key') || request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  return header === expected;
-}
+import { authorised } from '@/lib/agent-auth';
 
 export async function POST(
   request: NextRequest,

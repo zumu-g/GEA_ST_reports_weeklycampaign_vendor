@@ -1,4 +1,5 @@
 import { getLiveStats } from '@/lib/markdown-loader';
+import { nowMs } from '@/lib/clock';
 import SectionHeading from '@/components/SectionHeading';
 
 function Delta({ value }: { value: number }) {
@@ -45,7 +46,7 @@ export default async function LiveStatsTile({
   if (!stats) return null;
 
   const dom = listed
-    ? Math.max(0, Math.floor((Date.now() - new Date(listed).getTime()) / 86_400_000))
+    ? Math.max(0, Math.floor((nowMs() - new Date(listed).getTime()) / 86_400_000))
     : 0;
 
   return (

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeAnalyticsFile, upsertStats } from '@/lib/markdown-loader';
+import { ingestGuard } from '@/lib/agent-auth';
 
 export async function POST(request: NextRequest) {
+  const denied = ingestGuard(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
     const { property, source, weekEnding, views, enquiries, saves, searchAppearances } = body;

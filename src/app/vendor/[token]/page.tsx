@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getPropertySlugForToken } from '@/lib/vendor-tokens';
+import { SectionSkeleton } from '@/components/vendor/DashboardSkeleton';
 import { getProperty } from '@/lib/markdown-loader';
 import VendorHeader from '@/components/vendor/VendorHeader';
 import CampaignChecklist from '@/components/vendor/CampaignChecklist';
@@ -22,6 +24,12 @@ import DailyQuote from '@/components/vendor/DailyQuote';
 import TrendBadge from '@/components/vendor/TrendBadge';
 import WeeklyTrend from '@/components/vendor/WeeklyTrend';
 import { getDailyQuote } from '@/lib/quotes';
+
+// Property markdown is the live record and is read fresh on every request
+// (no ISR/ unstable_cache in getProperty) — pin this explicitly so a future
+// Next.js default or an added cache directive can't silently make edits stop
+// showing up without a rebuild.
+export const dynamic = 'force-dynamic';
 
 function calcDaysOnMarket(listed: string, weekEnding?: string): number {
   if (!listed) return 0;
@@ -371,8 +379,12 @@ export default async function VendorDashboard({
           {/* Two-way Messages */}
           <CommentThread token={token} />
 
-          {/* Local Market (just sold + just listed within 500m) */}
-          <LocalMarket address={property.address} suburb={localitySuburb} />
+          {/* Local Market (just sold + just listed within 500m). Hits an
+              external market lookup, so stream it — the rest of the page
+              paints immediately and this fills in a beat later. */}
+          <Suspense fallback={<SectionSkeleton lines={4} />}>
+            <LocalMarket address={property.address} suburb={localitySuburb} />
+          </Suspense>
 
           {/* Seller Guides */}
           <GuidesSpotlight token={token} />

@@ -47,6 +47,9 @@ export default function CampaignChecklist({ items, storageKey }: CampaignCheckli
       const raw = localStorage.getItem(storageKey);
       if (!raw) return;
       const saved = JSON.parse(raw) as Record<string, ChecklistStatus | boolean>;
+      // SSR-safe hydration from localStorage: must run in an effect, not the
+      // useState initializer, to avoid a server/client hydration mismatch.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(prev =>
         prev.map(i => {
           if (!(i.task in saved)) return i;

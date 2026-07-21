@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import SectionHeading from '../SectionHeading';
 
 interface Comment {
@@ -10,10 +10,22 @@ interface Comment {
   body: string;
 }
 
+// How often to poll for new agent replies while the tab is open.
+const POLL_MS = 25_000;
+
 function formatTime(ts: string): string {
   const d = new Date(ts);
   if (isNaN(d.getTime())) return ts;
   return d.toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+}
+
+// Merge server truth with any still-pending optimistic (tmp-) messages, so a
+// poll that resolves mid-send never drops the message the vendor just typed.
+function mergeComments(prev: Comment[], server: Comment[]): Comment[] {
+  const pendingLocal = prev.filter(c => c.id.startsWith('tmp-'));
+  return [...server, ...pendingLocal].sort((a, b) =>
+    a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0,
+  );
 }
 
 export default function CommentThread({ token }: { token: string }) {
@@ -22,24 +34,46 @@ export default function CommentThread({ token }: { token: string }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const inFlight = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/vendor/comments/${token}`)
-      .then(r => r.json())
-      .then(data => {
-        if (!cancelled) {
-          setComments(data.comments || []);
-          setLoaded(true);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
+  // Refetch the thread and merge into local state. Guarded so overlapping
+  // polls / focus events don't stack up concurrent requests.
+  const refetch = useCallback(async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const res = await fetch(`/api/vendor/comments/${token}`);
+      const data = await res.json();
+      setComments(prev => mergeComments(prev, data.comments || []));
+    } catch {
+      // Transient — keep showing what we have; next poll retries.
+    } finally {
+      setLoaded(true);
+      inFlight.current = false;
+    }
   }, [token]);
+
+  // Initial load + poll on an interval + immediate refetch when the vendor
+  // returns to the tab, so agent replies appear without a manual refresh.
+  useEffect(() => {
+    let stopped = false;
+    const tick = () => {
+      if (!stopped) refetch();
+    };
+    tick();
+    const interval = setInterval(tick, POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', tick);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', tick);
+    };
+  }, [refetch]);
 
   const submit = () => {
     const text = draft.trim();

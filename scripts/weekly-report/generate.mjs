@@ -20,7 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePortalStats } from "./parse-portal.mjs";
-import { buildNarrative, weekFocus, narrativeWeek } from "./narrative.mjs";
+import { buildNarrative, weekFocus } from "./narrative.mjs";
 import { buildChecklist } from "./checklist.mjs";
 import { buildAlerts } from "./alerts.mjs";
 
@@ -94,7 +94,7 @@ function deltaSuffix(d) {
   return " (no change)";
 }
 
-function renderPortalRow(label, stat, prevStat) {
+function renderPortalRow(label, stat) {
   if (!stat) return `| ${label} | _no report received_ | — | — | — |`;
   return `| ${label} | ${fmt(stat.views)} | ${fmt(stat.enquiries)} | ${fmt(stat.saves)} | ${fmt(stat.reveals)} |`;
 }
@@ -112,7 +112,6 @@ function renderChecklistTable(checklist) {
 }
 
 export function renderReport(ctx) {
-  const w = narrativeWeek(ctx.week);
   const n = buildNarrative(ctx);
   const checklist = buildChecklist(ctx);
   const alerts = buildAlerts(ctx);

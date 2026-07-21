@@ -3,7 +3,9 @@ import { getUnifiedTimeline, TimelineEntry } from '@/lib/markdown-loader';
 const sourceDot: Record<TimelineEntry['source'], string> = {
   clickup: 'bg-blue-500',
   telegram: 'bg-sky-500',
+  whatsapp: 'bg-green-500',
   analytics: 'bg-emerald-500',
+  enrichment: 'bg-purple-500',
   inspection: 'bg-amber-500',
   comment: 'bg-accent',
 };

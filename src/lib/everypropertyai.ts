@@ -13,8 +13,15 @@
  * Coverage is restricted to City of Casey + Shire of Cardinia; a subject outside
  * that area returns empty arrays by design.
  */
-const API_URL = process.env.EVERYPROPERTY_API_URL || "https://geaeverypropertyai-production.up.railway.app";
-const API_KEY = process.env.EVERYPROPERTY_API_KEY || "";
+// Read per-call (not at module load) so env overrides in tests, or a
+// late-configured deploy, take effect — matches markdown-loader.ts's
+// propertiesDir() pattern.
+function apiUrl(): string {
+  return process.env.EVERYPROPERTY_API_URL || "https://geaeverypropertyai-production.up.railway.app";
+}
+function apiKey(): string {
+  return process.env.EVERYPROPERTY_API_KEY || "";
+}
 const TIMEOUT_MS = 30_000;
 
 export interface SoldComp {
@@ -73,13 +80,67 @@ export interface CompsQuery {
 
 const EMPTY: VendorReportComps = { solds: [], listings: [] };
 
+export interface PropertyDetails {
+  bedrooms: number | null;
+  bathrooms: number | null;
+  carSpaces: number | null;
+  landAreaSqm: number | null;
+  propertyType: string | null;
+}
+
+const EMPTY_DETAILS: PropertyDetails = {
+  bedrooms: null,
+  bathrooms: null,
+  carSpaces: null,
+  landAreaSqm: null,
+  propertyType: null,
+};
+
+/**
+ * Fetch attribute enrichment (beds/baths/car spaces/land size/type) for a
+ * subject address.
+ *
+ * ASSUMPTION: this endpoint's path (`/api/property-details`) has not been
+ * confirmed against the live everypropertyai backend — only `/api/vendor-report`
+ * (used by getVendorReportComps above) is proven to exist in this codebase.
+ * Fails soft to EMPTY_DETAILS on any error, same posture as getVendorReportComps,
+ * so an unconfirmed/wrong path degrades gracefully rather than breaking enrichment.
+ */
+export async function getPropertyDetails(address: string): Promise<PropertyDetails> {
+  if (!apiKey() || !address) return EMPTY_DETAILS;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const qs = new URLSearchParams({ address });
+    const res = await fetch(`${apiUrl()}/api/property-details?${qs.toString()}`, {
+      headers: { Authorization: `Bearer ${apiKey()}` },
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    if (!res.ok) return EMPTY_DETAILS;
+    const data = (await res.json()) as Partial<PropertyDetails>;
+    return {
+      bedrooms: data.bedrooms ?? null,
+      bathrooms: data.bathrooms ?? null,
+      carSpaces: data.carSpaces ?? null,
+      landAreaSqm: data.landAreaSqm ?? null,
+      propertyType: data.propertyType ?? null,
+    };
+  } catch {
+    return EMPTY_DETAILS;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Fetch nearby comparable solds + new listings for a subject property.
  * Fails soft: any missing key / non-200 / network error / timeout returns
  * empty arrays so the report still renders.
  */
 export async function getVendorReportComps(query: CompsQuery): Promise<VendorReportComps> {
-  if (!API_KEY) return EMPTY;
+  if (!apiKey()) return EMPTY;
   if (query.lat == null && query.lng == null && !query.address) return EMPTY;
 
   const qs = new URLSearchParams();
@@ -95,8 +156,8 @@ export async function getVendorReportComps(query: CompsQuery): Promise<VendorRep
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${API_URL}/api/vendor-report?${qs.toString()}`, {
-      headers: { Authorization: `Bearer ${API_KEY}` },
+    const res = await fetch(`${apiUrl()}/api/vendor-report?${qs.toString()}`, {
+      headers: { Authorization: `Bearer ${apiKey()}` },
       signal: controller.signal,
       cache: "no-store",
     });

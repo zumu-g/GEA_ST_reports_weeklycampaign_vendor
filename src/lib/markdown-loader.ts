@@ -1,8 +1,27 @@
 import fs from 'fs/promises';
 import path from 'path';
-import matter from 'gray-matter';
+import { getStorage } from './storage';
 
-const PROPERTIES_DIR = process.env.PROPERTIES_DIR || '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_vendor_portal/properties';
+// Read per-call (not at module load) so PROPERTIES_DIR overrides — in tests or
+// a late-configured deploy — take effect. Matches storage.ts's read timing.
+function propertiesDir(): string {
+  return (
+    process.env.PROPERTIES_DIR ||
+    '/Users/stuartgrant_mbp13/Library/Mobile Documents/com~apple~CloudDocs/GEA_ST_vendor_portal/properties'
+  );
+}
+
+// Property slugs are the only client-supplied component of every filesystem
+// path under PROPERTIES_DIR. Some ingest routes accept a slug straight from the
+// request body, so an unvalidated slug like "../../etc" would let a caller read
+// or write outside the properties tree. Reject anything that isn't a plain slug.
+// ponytail: one guard at every write chokepoint beats sanitising each route.
+export function assertSafeSlug(slug: string): string {
+  if (typeof slug !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
+    throw new Error(`Invalid property slug: ${JSON.stringify(slug)}`);
+  }
+  return slug;
+}
 
 // --- Types ---
 
@@ -103,7 +122,7 @@ function markToStatus(mark: string): ChecklistStatus {
   return 'todo';
 }
 
-function parseChecklist(
+export function parseChecklist(
   content: string,
 ): { task: string; status: ChecklistStatus; done: boolean }[] {
   const items: { task: string; status: ChecklistStatus; done: boolean }[] = [];
@@ -122,7 +141,7 @@ function parseLatestUpdate(content: string): string {
   return match ? match[1].trim() : '';
 }
 
-function parseMarkdownTable(content: string, headerPattern: string): Record<string, string>[] {
+export function parseMarkdownTable(content: string, headerPattern: string): Record<string, string>[] {
   const lines = content.split('\n');
   let headerIndex = -1;
 
@@ -159,7 +178,7 @@ function parseMarkdownTable(content: string, headerPattern: string): Record<stri
   return rows;
 }
 
-function parseAnalyticsTable(content: string): AnalyticsRow[] {
+export function parseAnalyticsTable(content: string): AnalyticsRow[] {
   const rows = parseMarkdownTable(content, 'Week Ending');
   return rows
     .filter(r => r['Week Ending'] && r['Week Ending'].trim() !== '')
@@ -174,7 +193,7 @@ function parseAnalyticsTable(content: string): AnalyticsRow[] {
     }));
 }
 
-function parseInspectionsTable(content: string): InspectionRow[] {
+export function parseInspectionsTable(content: string): InspectionRow[] {
   const rows = parseMarkdownTable(content, 'Date');
   return rows
     .filter(r => r['Date'] && r['Date'].trim() !== '')
@@ -187,8 +206,7 @@ function parseInspectionsTable(content: string): InspectionRow[] {
     }));
 }
 
-function parseCommunicationsTable(content: string): CommunicationRow[] {
-  const rows = parseMarkdownTable(content, 'Date');
+export function parseCommunicationsTable(content: string): CommunicationRow[] {
   // Communications table might clash with inspections; use the one under ## Communications Log
   const commSection = content.split('## Communications Log')[1];
   if (!commSection) return [];
@@ -225,7 +243,7 @@ function parseAddress(content: string): string {
 async function listPropertySlugs(): Promise<string[]> {
   let entries;
   try {
-    entries = await fs.readdir(PROPERTIES_DIR, { withFileTypes: true });
+    entries = await fs.readdir(propertiesDir(), { withFileTypes: true });
   } catch (err) {
     // A missing data dir (e.g. PROPERTIES_DIR unset on a deploy) is an empty
     // state, not a crash — degrade to "no listings" so the app still renders.
@@ -238,7 +256,7 @@ async function listPropertySlugs(): Promise<string[]> {
 }
 
 async function readPropertyFile(slug: string): Promise<string> {
-  const filePath = path.join(PROPERTIES_DIR, slug, 'PROPERTY.md');
+  const filePath = path.join(propertiesDir(), slug, 'PROPERTY.md');
   return fs.readFile(filePath, 'utf-8');
 }
 
@@ -288,7 +306,7 @@ export async function getProperty(slug: string): Promise<PropertyData | null> {
 }
 
 export async function getPropertyAnalytics(slug: string): Promise<AnalyticsDetail[]> {
-  const dirPath = path.join(PROPERTIES_DIR, slug, 'analytics');
+  const dirPath = path.join(propertiesDir(), slug, 'analytics');
   const files = await listFilesInDir(dirPath);
   const results: AnalyticsDetail[] = [];
 
@@ -315,7 +333,7 @@ export async function getPropertyAnalytics(slug: string): Promise<AnalyticsDetai
 }
 
 export async function getPropertyInspections(slug: string): Promise<InspectionDetail[]> {
-  const dirPath = path.join(PROPERTIES_DIR, slug, 'inspections');
+  const dirPath = path.join(propertiesDir(), slug, 'inspections');
   const files = await listFilesInDir(dirPath);
   const results: InspectionDetail[] = [];
 
@@ -353,7 +371,8 @@ export async function createPropertyFolder(
     campaignType: string;
   }
 ): Promise<void> {
-  const propertyDir = path.join(PROPERTIES_DIR, slug);
+  assertSafeSlug(slug);
+  const propertyDir = path.join(propertiesDir(), slug);
 
   // Create subdirectories
   await fs.mkdir(path.join(propertyDir, 'analytics'), { recursive: true });
@@ -428,9 +447,13 @@ export async function writeAnalyticsFile(
     searchAppearances?: number;
   }
 ): Promise<string> {
+  assertSafeSlug(slug);
   const sourceSlug = data.source.toLowerCase().includes('domain') ? 'domain' : 'rea';
-  const fileName = `${data.weekEnding}-${sourceSlug}.md`;
-  const dirPath = path.join(PROPERTIES_DIR, slug, 'analytics');
+  // weekEnding lands in the filename — strip anything that isn't date-safe so it
+  // can't be used as a second path-traversal lever (e.g. "../../x").
+  const weekSafe = String(data.weekEnding).replace(/[^0-9-]/g, '');
+  const fileName = `${weekSafe}-${sourceSlug}.md`;
+  const dirPath = path.join(propertiesDir(), slug, 'analytics');
   await fs.mkdir(dirPath, { recursive: true });
   const filePath = path.join(dirPath, fileName);
 
@@ -468,9 +491,11 @@ export async function writeInspectionFile(
     notes: string;
   }
 ): Promise<string> {
+  assertSafeSlug(slug);
   const typeSlug = data.type.toLowerCase().includes('private') ? 'private' : 'open';
-  const fileName = `${data.date}-${typeSlug}.md`;
-  const dirPath = path.join(PROPERTIES_DIR, slug, 'inspections');
+  const dateSafe = String(data.date).replace(/[^0-9-]/g, '');
+  const fileName = `${dateSafe}-${typeSlug}.md`;
+  const dirPath = path.join(propertiesDir(), slug, 'inspections');
   await fs.mkdir(dirPath, { recursive: true });
   const filePath = path.join(dirPath, fileName);
 
@@ -503,7 +528,8 @@ async function appendToPropertyTable(
   type: 'analytics' | 'inspection',
   data: Record<string, unknown>
 ): Promise<void> {
-  const propertyPath = path.join(PROPERTIES_DIR, slug, 'PROPERTY.md');
+  assertSafeSlug(slug);
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
 
   try {
     let content = await fs.readFile(propertyPath, 'utf-8');
@@ -581,6 +607,119 @@ async function appendToPropertyTable(
   } catch {
     // Property file may not exist yet
   }
+}
+
+// Escapes markdown table-breaking characters in externally-sourced cell
+// values (pipes, newlines, angle brackets) before splicing them into
+// PROPERTY.md. This data crosses a trust boundary — an external API
+// response — so a malformed or hostile value must not corrupt the table
+// structure or inject content into the vendor-rendered page.
+function escapeTableCell(value: string): string {
+  return String(value)
+    .replace(/\|/g, '\\|')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Rewrites a two-line-header markdown table under the given `## heading` in
+ * PROPERTY.md with new rows, generalising appendToPropertyTable's
+ * header-matching string-splice approach for sections that get replaced
+ * wholesale (e.g. "Just Listed Nearby") rather than appended row-by-row.
+ * If the heading is missing entirely, it is appended to the end of the file
+ * rather than silently no-op'ing (the failure mode appendToPropertyTable has
+ * for a missing header).
+ */
+export async function updatePropertySection(
+  slug: string,
+  heading: string,
+  headerLine: string,
+  rows: string[][]
+): Promise<void> {
+  assertSafeSlug(slug);
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
+
+  let content: string;
+  try {
+    content = await fs.readFile(propertyPath, 'utf-8');
+  } catch {
+    return; // Property file may not exist yet
+  }
+
+  const columnCount = headerLine.split('|').length - 2;
+  const separatorLine = '|' + Array(columnCount).fill('---').join('|') + '|';
+  const body = rows.length > 0
+    ? rows.map(row => '| ' + row.map(escapeTableCell).join(' | ') + ' |').join('\n')
+    : `| No recent nearby activity${' |'.repeat(columnCount - 1)} |`;
+
+  const headingMarker = `## ${heading}`;
+  const headingIdx = content.indexOf(headingMarker);
+
+  if (headingIdx === -1) {
+    // Heading missing entirely — append a new section rather than silently
+    // no-op'ing, which is the fragility appendToPropertyTable has today.
+    const newSection = `\n## ${heading}\n${headerLine}\n${separatorLine}\n${body}\n`;
+    await fs.writeFile(propertyPath, content.trimEnd() + '\n' + newSection, 'utf-8');
+    return;
+  }
+
+  // Find the table under this heading and replace its rows through to the
+  // next heading (or end of file).
+  const afterHeadingLine = content.indexOf('\n', headingIdx) + 1;
+  const nextHeadingIdx = content.indexOf('\n## ', afterHeadingLine);
+  const sectionEnd = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
+
+  const newSectionBody = `${headerLine}\n${separatorLine}\n${body}\n`;
+  content = content.substring(0, afterHeadingLine) + newSectionBody + content.substring(sectionEnd);
+
+  await fs.writeFile(propertyPath, content, 'utf-8');
+}
+
+// Merges newsArticles from an approved WeeklyDraft into the property's
+// "## Market News" bullet section (U5) — this is the only write path that
+// makes newsArticles reach the vendor portal, since the portal renders
+// `news` parsed straight from PROPERTY.md, not from the WeeklyDraft JSON.
+// Dedupes by url against what's already in the section.
+export async function appendMarketNews(
+  slug: string,
+  articles: { title: string; url: string; note: string }[]
+): Promise<void> {
+  assertSafeSlug(slug);
+  if (articles.length === 0) return;
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
+
+  let content: string;
+  try {
+    content = await fs.readFile(propertyPath, 'utf-8');
+  } catch {
+    return; // Property file may not exist yet
+  }
+
+  const existing = parseMarketNews(content);
+  const seen = new Set(existing.map(n => n.url));
+  const merged = [...existing];
+  for (const a of articles) {
+    if (seen.has(a.url)) continue;
+    seen.add(a.url);
+    merged.push({ title: a.title, url: a.url, summary: a.note });
+  }
+  if (merged.length === existing.length) return; // nothing new to write
+
+  const bullets = merged.map(n => `- [${n.title}](${n.url}) — ${n.summary}`).join('\n');
+  const headingMarker = '## Market News';
+  const headingIdx = content.indexOf(headingMarker);
+
+  if (headingIdx === -1) {
+    await fs.writeFile(propertyPath, content.trimEnd() + `\n\n${headingMarker}\n${bullets}\n`, 'utf-8');
+    return;
+  }
+
+  const afterHeadingLine = content.indexOf('\n', headingIdx) + 1;
+  const nextHeadingIdx = content.indexOf('\n## ', afterHeadingLine);
+  const sectionEnd = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
+  content = content.substring(0, afterHeadingLine) + bullets + '\n' + content.substring(sectionEnd);
+  await fs.writeFile(propertyPath, content, 'utf-8');
 }
 
 // --- Stats sidecar (denormalised weekly snapshots from REA/Domain) ---
@@ -714,10 +853,11 @@ export async function setChecklistItem(
   label: string,
   status: ChecklistStatus | boolean,
 ): Promise<boolean> {
+  assertSafeSlug(slug);
   const targetStatus: ChecklistStatus =
     typeof status === 'boolean' ? (status ? 'done' : 'todo') : status;
   const mark = STATUS_TO_MARK[targetStatus];
-  const propertyPath = path.join(PROPERTIES_DIR, slug, 'PROPERTY.md');
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
   let content: string;
   try {
     content = await fs.readFile(propertyPath, 'utf-8');
@@ -770,7 +910,7 @@ export async function setChecklistItem(
 
 // --- Activity feed + comments (JSON sidecars) ---
 
-export type ActivitySource = 'clickup' | 'telegram' | 'analytics' | 'inspection' | 'comment';
+export type ActivitySource = 'clickup' | 'telegram' | 'whatsapp' | 'analytics' | 'enrichment' | 'inspection' | 'comment';
 
 export interface ActivityEvent {
   id: string;
@@ -795,21 +935,12 @@ function randomId(): string {
 }
 
 async function readJsonSidecar<T>(slug: string, file: string): Promise<T[]> {
-  const filePath = path.join(PROPERTIES_DIR, slug, file);
-  try {
-    const raw = await fs.readFile(filePath, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return getStorage().readList<T>(`${slug}/${file}`);
 }
 
 async function writeJsonSidecar<T>(slug: string, file: string, items: T[]): Promise<void> {
-  const dir = path.join(PROPERTIES_DIR, slug);
-  await fs.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, file);
-  await fs.writeFile(filePath, JSON.stringify(items, null, 2) + '\n', 'utf-8');
+  assertSafeSlug(slug);
+  await getStorage().writeList<T>(`${slug}/${file}`, items);
 }
 
 export async function readActivity(slug: string): Promise<ActivityEvent[]> {
@@ -904,7 +1035,8 @@ export interface DocumentMeta {
 }
 
 function documentsDir(slug: string): string {
-  return path.join(PROPERTIES_DIR, slug, 'documents');
+  assertSafeSlug(slug);
+  return path.join(propertiesDir(), slug, 'documents');
 }
 
 async function readDocumentIndex(slug: string): Promise<DocumentMeta[]> {
@@ -1049,7 +1181,7 @@ export async function enqueueNotification(
     portalUrl: n.portalUrl,
     created_at: n.created_at || new Date().toISOString(),
   };
-  const dir = path.join(PROPERTIES_DIR, '_outbound');
+  const dir = path.join(propertiesDir(), '_outbound');
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, `${entry.id}.json`), JSON.stringify(entry, null, 2) + '\n', 'utf-8');
   return entry;

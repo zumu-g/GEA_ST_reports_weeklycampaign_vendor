@@ -107,7 +107,6 @@ export default function RentalReportWizard({ activeRentals }: RentalReportWizard
   }
 
   async function draftCommentary() {
-    const apiKey = process.env.NEXT_PUBLIC_MINIMAX_API_KEY;
     const payload = {
       weekEnding: data.weekEnding,
       propertyAddress: data.propertyAddress,
