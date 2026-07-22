@@ -702,7 +702,13 @@ export async function appendMarketNews(
   for (const a of articles) {
     if (seen.has(a.url)) continue;
     seen.add(a.url);
-    merged.push({ title: a.title, url: a.url, summary: a.note });
+    // A blank summary produces "- [title](url) — " with nothing after the
+    // dash, which parseMarketNews's regex requires at least one char for —
+    // that line would never re-parse, so re-approving the same draft would
+    // re-append it every time. Newlines are stripped too so scraped text
+    // can't inject a fake "\n- [...]" bullet into the section.
+    const summary = (a.note || 'Read more.').replace(/\r?\n+/g, ' ').trim() || 'Read more.';
+    merged.push({ title: a.title.replace(/\r?\n+/g, ' ').trim(), url: a.url, summary });
   }
   if (merged.length === existing.length) return; // nothing new to write
 

@@ -36,6 +36,13 @@ describe('parseArticleBroadcast', () => {
     expect(parseArticleBroadcast('Add this article to all reports this week, forgot the link')).toBeNull();
   });
 
+  it('trims trailing punctuation the greedy URL match swallows', () => {
+    expect(parseArticleBroadcast('Add this article\nhttps://example.com/a).\nTitle')).toEqual({
+      url: 'https://example.com/a',
+      title: 'Title',
+    });
+  });
+
   it('picks the first URL when multiple are present', () => {
     const result = parseArticleBroadcast(
       'Add this article\nhttps://example.com/first\nsee also https://example.com/second'

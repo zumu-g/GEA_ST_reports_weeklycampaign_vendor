@@ -171,7 +171,11 @@ export async function broadcastArticleToAllDrafts(
         ];
         await saveWeeklyDraft({ ...draft, newsArticles });
         updated.push(property.slug);
-      } catch {
+      } catch (err) {
+        // Distinct from the dedupe-skip above, but both land in `skipped` for
+        // callers today (no separate `failed` bucket yet) -- log so a real
+        // bug here isn't silently indistinguishable from "already had it".
+        console.error(`broadcastArticleToAllDrafts: failed for ${property.slug}`, err);
         skipped.push(property.slug);
       }
     })
