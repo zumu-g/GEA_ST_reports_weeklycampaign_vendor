@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
   const note = parseFreeformNote(message);
   if (note) {
-    const property = resolveProperty(note.propertyText);
+    const property = await resolveProperty(note.propertyText);
     if (!property) return emptyTwiml();
     await appendActivity(property.slug, {
       source: 'whatsapp',
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
   const parsed = parseTelegramMessage(message);
   if (!parsed) return emptyTwiml();
 
-  const property = resolveProperty(parsed.propertyText);
+  const property = await resolveProperty(parsed.propertyText);
   if (!property) return emptyTwiml();
 
   const today = new Date().toISOString().split('T')[0];

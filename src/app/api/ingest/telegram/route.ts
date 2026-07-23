@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Free-form note path — write to activity feed, not inspection log
     const note = parseFreeformNote(message);
     if (note) {
-      const property = resolveProperty(note.propertyText);
+      const property = await resolveProperty(note.propertyText);
       if (!property) {
         return NextResponse.json(
           { error: 'Could not match property', searched: note.propertyText },
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const property = resolveProperty(parsed.propertyText);
+    const property = await resolveProperty(parsed.propertyText);
     if (!property) {
       return NextResponse.json(
         {
