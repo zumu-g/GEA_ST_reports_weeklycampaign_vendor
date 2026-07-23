@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPropertyFolder } from '@/lib/markdown-loader';
+import { createPropertyFolder, slugifyAddress } from '@/lib/markdown-loader';
 import { assignToken } from '@/lib/vendor-tokens';
 import { authorised } from '@/lib/agent-auth';
-
-function slugify(address: string): string {
-  return address
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
 
 export async function POST(request: NextRequest) {
   if (!authorised(request)) {
@@ -26,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Always slugify, even a client-supplied slug, so it can't carry path
     // traversal (e.g. "../../etc") into createPropertyFolder's filesystem path.
-    const slug = slugify(body.slug || address);
+    const slug = slugifyAddress(body.slug || address);
 
     await createPropertyFolder(slug, { address, owner, contact: contact || '', listed: listed || '', priceGuide: priceGuide || 'TBC', campaignType: campaignType || 'Private Sale' });
 

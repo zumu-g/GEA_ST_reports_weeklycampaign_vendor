@@ -3,7 +3,10 @@ import { NextRequest } from 'next/server';
 
 const createPropertyFolder = vi.fn().mockResolvedValue(undefined);
 const assignToken = vi.fn().mockReturnValue('fake-token');
-vi.mock('@/lib/markdown-loader', () => ({ createPropertyFolder: (...args: unknown[]) => createPropertyFolder(...args) }));
+vi.mock('@/lib/markdown-loader', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/markdown-loader')>('@/lib/markdown-loader');
+  return { ...actual, createPropertyFolder: (...args: unknown[]) => createPropertyFolder(...args) };
+});
 vi.mock('@/lib/vendor-tokens', () => ({ assignToken: (...args: unknown[]) => assignToken(...args) }));
 
 import { POST } from './route';

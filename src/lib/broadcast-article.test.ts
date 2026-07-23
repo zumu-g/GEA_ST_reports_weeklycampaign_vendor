@@ -31,6 +31,7 @@ function property(slug: string): PropertyData {
     campaignType: 'Private Sale',
     agent: 'Stuart Grant',
     calendarId: '',
+    crmListingId: '',
     checklist: [],
     latestUpdate: '',
     analytics: [],
