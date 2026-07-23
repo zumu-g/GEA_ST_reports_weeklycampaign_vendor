@@ -153,6 +153,16 @@ export async function getLivePropertySet(): Promise<LivePropertySetResult> {
   return { properties, source: 'crm', allSlugs, hiddenSlugs, conflicts };
 }
 
+/**
+ * The vendor portal's hide/show decision (U4), extracted as a pure predicate
+ * so it's testable without rendering the page: hide only when the CRM
+ * actively confirms the slug isn't live. A CRM outage (source:
+ * 'markdown-fallback') always fails open — KTD4.
+ */
+export function isHiddenFromPortal(slug: string, live: { slugs: string[]; source: 'crm' | 'markdown-fallback' }): boolean {
+  return live.source === 'crm' && !live.slugs.includes(slug);
+}
+
 /** Convenience: just the slugs the rest of the app should treat as active. */
 export async function getLivePropertySlugs(): Promise<{ slugs: string[]; source: 'crm' | 'markdown-fallback'; crmError?: string }> {
   const result = await getLivePropertySet();

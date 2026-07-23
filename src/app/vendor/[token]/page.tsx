@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { getPropertySlugForToken } from '@/lib/vendor-tokens';
 import { SectionSkeleton } from '@/components/vendor/DashboardSkeleton';
 import { getProperty } from '@/lib/markdown-loader';
+import { getLivePropertySlugs, isHiddenFromPortal } from '@/lib/live-properties';
+import CampaignInactive from '@/components/vendor/CampaignInactive';
 import VendorHeader from '@/components/vendor/VendorHeader';
 import CampaignChecklist from '@/components/vendor/CampaignChecklist';
 import AppointmentCalendar from '@/components/vendor/AppointmentCalendar';
@@ -65,6 +67,14 @@ export default async function VendorDashboard({
 
   const property = await getProperty(slug);
   if (!property) notFound();
+
+  // Hide the report once the listing leaves the CRM's live set (KTD4: only
+  // when the CRM actually confirms it — a CRM outage fails open and still
+  // renders the full report from local markdown).
+  const live = await getLivePropertySlugs();
+  if (isHiddenFromPortal(slug, live)) {
+    return <CampaignInactive address={property.address} agent={property.agent} />;
+  }
 
   const totals = sumAnalytics(property.analytics);
   const latestAnalytics = property.analytics[0] ?? null;

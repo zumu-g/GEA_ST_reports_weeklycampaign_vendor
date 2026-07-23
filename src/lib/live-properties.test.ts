@@ -10,7 +10,7 @@ vi.mock('@/lib/crm-client', async () => {
 });
 
 import { isCrmConfigured, listAllListings } from '@/lib/crm-client';
-import { getLivePropertySet, normaliseAddress } from '@/lib/live-properties';
+import { getLivePropertySet, normaliseAddress, isHiddenFromPortal } from '@/lib/live-properties';
 import { createPropertyFolder, getProperty } from '@/lib/markdown-loader';
 
 const isCrmConfiguredMock = vi.mocked(isCrmConfigured);
@@ -63,6 +63,20 @@ describe('normaliseAddress', () => {
     expect(normaliseAddress('85 Centenary Boulevard, Officer South VIC 3809')).toEqual(
       normaliseAddress('85 Centenary Blvd, Officer South')
     );
+  });
+});
+
+describe('isHiddenFromPortal (U4)', () => {
+  it('hides a slug the CRM confirms is not in the live set', () => {
+    expect(isHiddenFromPortal('stale', { slugs: ['live-one'], source: 'crm' })).toBe(true);
+  });
+
+  it('shows a slug that is in the live set', () => {
+    expect(isHiddenFromPortal('live-one', { slugs: ['live-one'], source: 'crm' })).toBe(false);
+  });
+
+  it('never hides on a CRM outage (fail-open), even for a slug absent from the fallback list', () => {
+    expect(isHiddenFromPortal('anything', { slugs: ['live-one'], source: 'markdown-fallback' })).toBe(false);
   });
 });
 
