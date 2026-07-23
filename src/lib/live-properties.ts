@@ -104,6 +104,10 @@ export async function getLivePropertySet(): Promise<LivePropertySetResult> {
   const matchedSlugs = new Set<string>();
   const conflicts: { listing: CrmListing; reason: string }[] = [];
   const properties: LiveProperty[] = [];
+  // Seeded from allSlugs, then grown as folders are created below — a static
+  // snapshot would miss two listings in the same run deriving the same slug
+  // and let the second createPropertyFolder call silently overwrite the first.
+  const knownSlugs = new Set(allSlugs);
 
   for (const report of crm.data) {
     const listing = report.listing;
@@ -131,8 +135,9 @@ export async function getLivePropertySet(): Promise<LivePropertySetResult> {
         conflicts.push({ listing, reason: 'Listing has no usable address to derive a slug from' });
         continue;
       }
-      if (allSlugs.includes(slug)) {
-        // Slug collides with an existing (non-matching) folder — refuse to
+      if (knownSlugs.has(slug)) {
+        // Slug collides with an existing folder, or with another listing
+        // already auto-created earlier in this same run — refuse to
         // overwrite; surface as a conflict rather than guessing.
         conflicts.push({ listing, reason: `Slug "${slug}" already exists but did not match by id or address` });
         continue;
@@ -147,6 +152,7 @@ export async function getLivePropertySet(): Promise<LivePropertySetResult> {
           campaignType: listing.type ?? 'Private Sale',
           crmListingId: listing.id,
         });
+        knownSlugs.add(slug);
         matchedSlugs.add(slug);
         properties.push({ slug, report, property: await getProperty(slug) });
       } catch (err) {

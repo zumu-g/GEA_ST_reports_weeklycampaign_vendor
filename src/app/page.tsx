@@ -28,7 +28,10 @@ export default async function Dashboard() {
   let source: "crm" | "markdown" | "mock";
   let crmError: string | undefined;
 
-  if (live.source === "crm" && live.properties.length > 0) {
+  if (live.source === "crm") {
+    // A reachable CRM with zero live listings is a real, valid state (a fully
+    // sold-out agency) — show it truthfully rather than falling back to
+    // potentially-stale local folders. Only an actual outage falls back.
     // crmReportToVendorReport sets `id` to the raw CRM listing id; every other
     // consumer (getTokenForSlug, draftMap) keys by folder slug, so override it.
     reports = live.properties.map((lp) => ({ ...crmReportToVendorReport(lp.report), id: lp.slug }));

@@ -239,4 +239,28 @@ describe('getLivePropertySet', () => {
     expect(result.conflicts).toHaveLength(1);
     expect(result.conflicts[0].listing.id).toBe('bad');
   });
+
+  it('does not let two same-run listings that derive the same slug overwrite each other', async () => {
+    // Regression: the collision guard used a static snapshot of existing
+    // slugs, so a second listing deriving the same slug as one just
+    // auto-created earlier in this run wasn't detected and would silently
+    // overwrite the first via createPropertyFolder's plain fs.writeFile.
+    isCrmConfiguredMock.mockReturnValue(true);
+    listAllListingsMock.mockResolvedValue({
+      ok: true,
+      data: [
+        reportListing(listing({ id: 'first', propertyAddress: '1 Same St, Sametown VIC 3000' })),
+        reportListing(listing({ id: 'second', propertyAddress: '1 Same St, Sametown VIC 3000', vendorName: 'Different Vendor' })),
+      ],
+    });
+
+    const result = await getLivePropertySet();
+    expect(result.properties).toHaveLength(1);
+    expect(result.conflicts).toHaveLength(1);
+    expect(result.conflicts[0].listing.id).toBe('second');
+
+    const slug = result.properties[0].slug;
+    const onDisk = await getProperty(slug);
+    expect(onDisk?.crmListingId).toBe('first'); // not overwritten by "second"
+  });
 });
