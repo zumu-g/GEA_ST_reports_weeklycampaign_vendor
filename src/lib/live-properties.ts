@@ -45,6 +45,19 @@ export interface LivePropertySetResult {
 // caught by keeping full listing data on the match, false negatives just
 // fall through to auto-create (safe default).
 const STATE_CODES = /\b(vic|nsw|qld|sa|wa|tas|nt|act)\b/gi;
+
+// The CRM's propertyAddress field is sometimes just the street line (e.g.
+// "17 Juliet Gardens") with suburb/state/postcode carried in separate DTO
+// fields rather than folded into the string — matching or slugifying on
+// propertyAddress alone then misses folders titled "...Suburb VIC ####" and
+// creates a duplicate. Compose the full address whenever those fields exist.
+export function fullAddress(listing: CrmListing): string {
+  const parts = [listing.propertyAddress];
+  const locality = [listing.suburb, listing.state, listing.postcode].filter(Boolean).join(' ');
+  if (locality) parts.push(locality);
+  return parts.join(', ');
+}
+
 export function normaliseAddress(address: string): string {
   return address
     .toLowerCase()
@@ -100,7 +113,7 @@ export async function getLivePropertySet(): Promise<LivePropertySetResult> {
     // 2. Fall back to normalised-address match; write the id back so future
     // runs use the stable id (KTD2/R5).
     if (!property) {
-      const normalised = normaliseAddress(listing.propertyAddress);
+      const normalised = normaliseAddress(fullAddress(listing));
       const addressMatch = byAddress.get(normalised) ?? null;
       if (addressMatch) {
         property = addressMatch;
@@ -110,9 +123,10 @@ export async function getLivePropertySet(): Promise<LivePropertySetResult> {
 
     // 3. No folder at all — auto-create one from the template (KTD3/R2).
     if (!property) {
+      const composedAddress = fullAddress(listing);
       // Repo slug convention is street-suburb only, no state/postcode
       // (CLAUDE.md) — CRM addresses carry both, so strip them before slugifying.
-      const slug = slugifyAddress(listing.propertyAddress.replace(STATE_CODES, '').replace(/\d{4}\b/g, ''));
+      const slug = slugifyAddress(composedAddress.replace(STATE_CODES, '').replace(/\d{4}\b/g, ''));
       if (!slug) {
         conflicts.push({ listing, reason: 'Listing has no usable address to derive a slug from' });
         continue;
@@ -125,7 +139,7 @@ export async function getLivePropertySet(): Promise<LivePropertySetResult> {
       }
       try {
         await createPropertyFolder(slug, {
-          address: listing.propertyAddress,
+          address: composedAddress,
           owner: listing.vendorName ?? 'TBC',
           contact: '',
           listed: listing.listedDate ?? '',

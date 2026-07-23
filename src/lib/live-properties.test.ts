@@ -121,6 +121,25 @@ describe('getLivePropertySet', () => {
     expect(updated?.crmListingId).toBe('crm-1');
   });
 
+  it('matches an existing folder when the CRM propertyAddress omits the suburb (composed from suburb/state/postcode)', async () => {
+    // Regression: a real CRM payload had propertyAddress "17 Juliet Gardens"
+    // with suburb/state/postcode as separate DTO fields — matching on
+    // propertyAddress alone missed the existing "...pakenham" folder and
+    // auto-created a duplicate.
+    isCrmConfiguredMock.mockReturnValue(true);
+    await createPropertyFolder('17-juliet-gardens-pakenham', {
+      address: '17 Juliet Gardens, Pakenham VIC 3810',
+      owner: 'Lynn', contact: '', listed: '', priceGuide: '', campaignType: 'Private Sale',
+    });
+    const l = listing({ id: 'crm-2', propertyAddress: '17 Juliet Gardens', suburb: 'Pakenham', state: 'VIC', postcode: '3810' });
+    listAllListingsMock.mockResolvedValue({ ok: true, data: [reportListing(l)] });
+
+    const result = await getLivePropertySet();
+    expect(result.properties).toHaveLength(1);
+    expect(result.properties[0].slug).toBe('17-juliet-gardens-pakenham');
+    expect(result.conflicts).toEqual([]);
+  });
+
   it('matches by stored CRM listing id on subsequent runs without re-parsing address', async () => {
     isCrmConfiguredMock.mockReturnValue(true);
     await createPropertyFolder('85-centenary-blvd-officer-south', {
