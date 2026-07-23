@@ -1,7 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { WeeklyDraft } from '@/lib/types';
-import { getAllProperties, getProperty } from '@/lib/markdown-loader';
+import { getProperty } from '@/lib/markdown-loader';
+import { getLivePropertyData } from '@/lib/live-properties';
 import { propertyToVendorReport } from '@/lib/data-adapter';
 import { resolveListing, getReportListing } from '@/lib/crm-client';
 import { applyCrmToDraft } from '@/lib/crm-draft-mapper';
@@ -49,7 +50,7 @@ export async function saveWeeklyDraft(draft: WeeklyDraft): Promise<void> {
 
 export async function getAllWeeklyDrafts(weekEnding: string): Promise<WeeklyDraft[]> {
   try {
-    const properties = await getAllProperties();
+    const { properties } = await getLivePropertyData();
     const drafts = await Promise.all(properties.map((p) => getWeeklyDraft(p.slug, weekEnding)));
     return drafts.filter((d): d is WeeklyDraft => d !== null);
   } catch {
@@ -119,7 +120,7 @@ export async function enrichDraftFromCrm(draft: WeeklyDraft): Promise<WeeklyDraf
 export async function generateAllWeeklyDrafts(
   weekEnding: string
 ): Promise<{ created: number; skipped: number; drafts: WeeklyDraft[] }> {
-  const properties = await getAllProperties();
+  const { properties } = await getLivePropertyData();
   const results: WeeklyDraft[] = [];
   let created = 0;
   let skipped = 0;
@@ -149,7 +150,7 @@ export async function broadcastArticleToAllDrafts(
   article: { title: string; url: string; note: string },
   weekEnding: string
 ): Promise<{ updated: string[]; skipped: string[] }> {
-  const properties = await getAllProperties();
+  const { properties } = await getLivePropertyData();
   const updated: string[] = [];
   const skipped: string[] = [];
 

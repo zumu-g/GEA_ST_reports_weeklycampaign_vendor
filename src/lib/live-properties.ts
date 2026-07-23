@@ -11,6 +11,7 @@ import type { CrmListing, ReportListing } from '@/lib/crm-client';
 import { isCrmConfigured, listAllListings } from '@/lib/crm-client';
 import {
   getAllProperties,
+  getProperty,
   createPropertyFolder,
   setCrmListingId,
   slugifyAddress,
@@ -133,7 +134,7 @@ export async function getLivePropertySet(): Promise<LivePropertySetResult> {
           crmListingId: listing.id,
         });
         matchedSlugs.add(slug);
-        properties.push({ slug, report, property: null });
+        properties.push({ slug, report, property: await getProperty(slug) });
       } catch (err) {
         conflicts.push({
           listing,
@@ -159,4 +160,26 @@ export async function getLivePropertySlugs(): Promise<{ slugs: string[]; source:
     return { slugs: result.allSlugs, source: 'markdown-fallback', crmError: result.crmError };
   }
   return { slugs: result.properties.map((p) => p.slug), source: 'crm' };
+}
+
+/**
+ * Convenience for consumers (weekly draft generation, article broadcast, the
+ * generate-report picker) that just need the live PropertyData[] set — CRM
+ * mode filters to live folders; markdown-fallback mode returns everything
+ * (KTD4: fail open, never hide on a CRM outage).
+ */
+export async function getLivePropertyData(): Promise<{
+  properties: PropertyData[];
+  source: 'crm' | 'markdown-fallback';
+  crmError?: string;
+}> {
+  const result = await getLivePropertySet();
+  if (result.source === 'markdown-fallback') {
+    const all = await getAllProperties();
+    return { properties: all, source: 'markdown-fallback', crmError: result.crmError };
+  }
+  const properties = result.properties
+    .map((lp) => lp.property)
+    .filter((p): p is PropertyData => p !== null);
+  return { properties, source: 'crm' };
 }

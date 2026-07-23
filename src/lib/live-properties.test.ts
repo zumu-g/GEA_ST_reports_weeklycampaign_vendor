@@ -156,6 +156,7 @@ describe('getLivePropertySet', () => {
     const result = await getLivePropertySet();
     expect(result.properties).toHaveLength(1);
     const slug = result.properties[0].slug;
+    expect(result.properties[0].property?.slug).toBe(slug); // re-read after creation, not left null
     const created = await getProperty(slug);
     expect(created?.address).toBe('10 New Street, Newtown VIC 3000');
     expect(created?.owner).toBe('Jo Vendor');
