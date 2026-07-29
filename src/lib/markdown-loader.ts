@@ -23,6 +23,18 @@ export function assertSafeSlug(slug: string): string {
   return slug;
 }
 
+// Shared slug convention (repo-wide): lowercase, hyphens, no state/postcode.
+// Used both by manual property creation (/api/properties/create) and by
+// live-properties.ts when auto-creating a folder for an unmatched CRM listing.
+export function slugifyAddress(address: string): string {
+  return address
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
 // --- Types ---
 
 // Checklist items are tri-state: not started, in progress, done.
@@ -44,6 +56,8 @@ export interface PropertyData {
   campaignType: string;
   agent: string;
   calendarId: string;
+  /** GEA CRM listing id, once matched by live-properties.ts (KTD2/R5). Empty until then. */
+  crmListingId: string;
   checklist: { task: string; status: ChecklistStatus; done: boolean }[];
   latestUpdate: string;
   analytics: AnalyticsRow[];
@@ -113,6 +127,7 @@ function parsePropertyDetails(content: string): Partial<PropertyData> {
     campaignType: get('Campaign Type'),
     agent: get('Agent'),
     calendarId: get('Calendar ID'),
+    crmListingId: get('CRM Listing ID'),
   };
 }
 
@@ -293,6 +308,7 @@ export async function getProperty(slug: string): Promise<PropertyData | null> {
       campaignType: details.campaignType || '',
       agent: details.agent || '',
       calendarId: details.calendarId || '',
+      crmListingId: details.crmListingId || '',
       checklist: parseChecklist(content),
       latestUpdate: parseLatestUpdate(content),
       analytics: parseAnalyticsTable(content),
@@ -369,6 +385,7 @@ export async function createPropertyFolder(
     listed: string;
     priceGuide: string;
     campaignType: string;
+    crmListingId?: string;
   }
 ): Promise<void> {
   assertSafeSlug(slug);
@@ -397,6 +414,7 @@ export async function createPropertyFolder(
 - **Campaign Type:** ${details.campaignType}
 - **Agent:** Stuart Grant
 - **Calendar ID:**
+- **CRM Listing ID:** ${details.crmListingId || ''}
 
 ## Campaign Checklist
 - [ ] Professional photography completed
@@ -702,7 +720,13 @@ export async function appendMarketNews(
   for (const a of articles) {
     if (seen.has(a.url)) continue;
     seen.add(a.url);
-    merged.push({ title: a.title, url: a.url, summary: a.note });
+    // A blank summary produces "- [title](url) — " with nothing after the
+    // dash, which parseMarketNews's regex requires at least one char for —
+    // that line would never re-parse, so re-approving the same draft would
+    // re-append it every time. Newlines are stripped too so scraped text
+    // can't inject a fake "\n- [...]" bullet into the section.
+    const summary = (a.note || 'Read more.').replace(/\r?\n+/g, ' ').trim() || 'Read more.';
+    merged.push({ title: a.title.replace(/\r?\n+/g, ' ').trim(), url: a.url, summary });
   }
   if (merged.length === existing.length) return; // nothing new to write
 
@@ -719,6 +743,38 @@ export async function appendMarketNews(
   const nextHeadingIdx = content.indexOf('\n## ', afterHeadingLine);
   const sectionEnd = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
   content = content.substring(0, afterHeadingLine) + bullets + '\n' + content.substring(sectionEnd);
+  await fs.writeFile(propertyPath, content, 'utf-8');
+}
+
+// Writes the CRM listing id into Property Details once live-properties.ts
+// matches a folder by address (KTD2/R5), so future runs match by id instead —
+// stable against address-format drift. No-op if already set to this value.
+export async function setCrmListingId(slug: string, listingId: string): Promise<void> {
+  assertSafeSlug(slug);
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
+  let content: string;
+  try {
+    content = await fs.readFile(propertyPath, 'utf-8');
+  } catch {
+    return;
+  }
+
+  const fieldRegex = /\*\*CRM Listing ID:\*\*\s*(.*)/;
+  const existing = content.match(fieldRegex);
+  if (existing && existing[1].trim() === listingId) return; // already set
+
+  if (existing) {
+    content = content.replace(fieldRegex, `**CRM Listing ID:** ${listingId}`);
+  } else {
+    // No field in this (older) property file — append it under Property Details.
+    const detailsMarker = '## Property Details';
+    const idx = content.indexOf(detailsMarker);
+    if (idx === -1) return;
+    const sectionEnd = content.indexOf('\n\n', idx);
+    const insertAt = sectionEnd === -1 ? content.length : sectionEnd;
+    content = content.slice(0, insertAt) + `\n- **CRM Listing ID:** ${listingId}` + content.slice(insertAt);
+  }
+
   await fs.writeFile(propertyPath, content, 'utf-8');
 }
 

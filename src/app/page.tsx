@@ -3,7 +3,7 @@ import Header from "@/components/Header";
 import PropertyCard from "@/components/PropertyCard";
 import RentalCard from "@/components/RentalCard";
 import WeeklyWorkflow from "@/components/WeeklyWorkflow";
-import { getAllProperties } from "@/lib/markdown-loader";
+import { getProperty } from "@/lib/markdown-loader";
 import { propertyToVendorReport } from "@/lib/data-adapter";
 import { getAllWeeklyDrafts, getReportWeekEnding } from "@/lib/weekly-drafts";
 import { mockReports } from "@/lib/mock-data";
@@ -11,35 +11,40 @@ import { getTokenForSlug } from "@/lib/vendor-tokens";
 import { getAllRentals } from "@/lib/rental-loader";
 import { getRentalTokenForSlug } from "@/lib/rental-tokens";
 import { WeeklyDraft, VendorReport } from "@/lib/types";
-import { isCrmConfigured, listAllListings } from "@/lib/crm-client";
+import { getLivePropertySet } from "@/lib/live-properties";
 import { crmReportToVendorReport } from "@/lib/crm-report-to-report";
 import SectionHeading from "@/components/SectionHeading";
 
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  // Listing set is CRM-first (works on Railway, where the local markdown data
-  // dir doesn't exist), then local markdown, then demo data as a last resort.
-  let reports: VendorReport[] | undefined;
-  let source: "crm" | "markdown" | "mock" = "markdown";
+  // Listing set is the GEA CRM's live listings (works on Railway, where the
+  // local markdown data dir doesn't exist), reconciled against local markdown
+  // folders by live-properties.ts. Falls back to the local markdown set when
+  // the CRM is unreachable/unconfigured — loudly (a banner below), not silently.
+  const live = await getLivePropertySet();
 
-  if (isCrmConfigured()) {
-    const crm = await listAllListings();
-    if (crm.ok && crm.data.length > 0) {
-      reports = crm.data.map(crmReportToVendorReport);
-      source = "crm";
-    }
-  }
+  let reports: VendorReport[];
+  let source: "crm" | "markdown" | "mock";
+  let crmError: string | undefined;
 
-  if (!reports) {
-    const markdownReports = (await getAllProperties()).map(propertyToVendorReport);
-    if (markdownReports.length > 0) {
-      reports = markdownReports;
-      source = "markdown";
-    } else {
-      reports = mockReports;
-      source = "mock";
-    }
+  if (live.source === "crm") {
+    // A reachable CRM with zero live listings is a real, valid state (a fully
+    // sold-out agency) — show it truthfully rather than falling back to
+    // potentially-stale local folders. Only an actual outage falls back.
+    // crmReportToVendorReport sets `id` to the raw CRM listing id; every other
+    // consumer (getTokenForSlug, draftMap) keys by folder slug, so override it.
+    reports = live.properties.map((lp) => ({ ...crmReportToVendorReport(lp.report), id: lp.slug }));
+    source = "crm";
+  } else if (live.allSlugs.length > 0) {
+    const markdownReports = (await Promise.all(live.allSlugs.map((slug) => getProperty(slug))))
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+    reports = markdownReports.map(propertyToVendorReport);
+    source = "markdown";
+    crmError = live.crmError;
+  } else {
+    reports = mockReports;
+    source = "mock";
   }
 
   // Load this week's drafts and map by property slug
@@ -64,6 +69,7 @@ export default async function Dashboard() {
   });
 
   const usingMockData = source === "mock";
+  const usingCrmFallback = source === "markdown" && Boolean(crmError);
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,6 +81,16 @@ export default async function Dashboard() {
             <span className="font-body text-sm font-medium text-warning">Demo data</span>
             <span className="w-px h-3.5 bg-warning/30" />
             <span className="font-body text-xs text-warning/80">No property files found in GEA_vendor_portal/properties/. Check that the folder is accessible and contains markdown files.</span>
+          </div>
+        </div>
+      )}
+
+      {usingCrmFallback && (
+        <div className="bg-warning/10 border-b border-warning/20">
+          <div className="max-w-7xl mx-auto px-10 py-2.5 flex items-center gap-3">
+            <span className="font-body text-sm font-medium text-warning">CRM unreachable</span>
+            <span className="w-px h-3.5 bg-warning/30" />
+            <span className="font-body text-xs text-warning/80">Showing local property files instead — some listings may be stale until the CRM connection recovers. ({crmError})</span>
           </div>
         </div>
       )}

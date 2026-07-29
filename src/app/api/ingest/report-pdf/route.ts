@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   let slug = propertySlug;
   if (!slug && parsed.address) {
-    const resolved = resolveProperty(parsed.address);
+    const resolved = await resolveProperty(parsed.address);
     if (resolved) slug = resolved.slug;
   }
   if (!slug) {

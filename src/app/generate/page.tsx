@@ -1,6 +1,6 @@
 import Header from "@/components/Header";
 import ReportWizard from "@/components/ReportWizard";
-import { getAllProperties } from "@/lib/markdown-loader";
+import { getLivePropertyData } from "@/lib/live-properties";
 import { getWeeklyDraft, parseWeeklyDraftId } from "@/lib/weekly-drafts";
 import { mockReports } from "@/lib/mock-data";
 import { WeeklyDraft } from "@/lib/types";
@@ -13,7 +13,7 @@ interface PageProps {
 
 export default async function GeneratePage({ searchParams }: PageProps) {
   const { draftId } = await searchParams;
-  const properties = await getAllProperties();
+  const { properties } = await getLivePropertyData();
 
   // Build a list of active listings for the quick-select dropdown
   const fromMarkdown = properties.map((p) => ({

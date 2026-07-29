@@ -5,7 +5,7 @@ import os from 'os';
 import path from 'path';
 import { POST } from './route';
 import { computeTwilioSignature, signedUrlForPath } from '@/lib/twilio-signature';
-import { readActivity } from '@/lib/markdown-loader';
+import { readActivity, createPropertyFolder } from '@/lib/markdown-loader';
 
 const SLUG = '85-centenary-blvd-officer-south';
 // Twilio's real wire format for a WhatsApp message channel-prefixes `From`,
@@ -27,7 +27,13 @@ beforeEach(async () => {
   process.env.TWILIO_AUTH_TOKEN = TOKEN;
   process.env.WHATSAPP_ALLOWED_SENDERS = BARE_NUMBER;
   process.env.NEXT_PUBLIC_BASE_URL = 'https://portal.grantsea.com.au';
-  await fs.mkdir(path.join(tmp, SLUG), { recursive: true });
+  // resolveProperty derives keywords from the live property set (U5), which
+  // reads real PROPERTY.md files — not a hardcoded registry — so the fixture
+  // needs an actual folder whose address contains "85 Centenary".
+  await createPropertyFolder(SLUG, {
+    address: '85 Centenary Boulevard, Officer South VIC 3809',
+    owner: 'Vikram Aulakh', contact: '', listed: '', priceGuide: '', campaignType: '',
+  });
 });
 
 afterEach(async () => {

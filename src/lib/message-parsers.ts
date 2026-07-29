@@ -17,9 +17,13 @@ export function parseArticleBroadcast(
 
   const urlMatch = message.match(URL_RE);
   if (!urlMatch) return null;
-  const url = urlMatch[1];
+  // Trim trailing punctuation/markup the URL regex greedily swallows when
+  // the link sits in prose or a markdown link, e.g. "https://x.com/a)." or
+  // "https://x.com/a]" — otherwise the broken URL breaks both the written
+  // markdown link and the dedup key on a resend.
+  const url = urlMatch[1].replace(/[).,\]>'"]+$/, '');
 
-  const after = message.slice(urlMatch.index! + url.length);
+  const after = message.slice(urlMatch.index! + urlMatch[1].length);
   const lines = after.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return { url };
 

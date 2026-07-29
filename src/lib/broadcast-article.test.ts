@@ -11,6 +11,10 @@ vi.mock('@/lib/markdown-loader', async () => {
 vi.mock('@/lib/crm-client', () => ({
   resolveListing: vi.fn().mockResolvedValue({ ok: true, data: null }),
   getReportListing: vi.fn(),
+  // Not configured -> live-properties.ts falls back to the markdown set
+  // unfiltered, which is what these broadcast tests exercise.
+  isCrmConfigured: vi.fn().mockReturnValue(false),
+  listAllListings: vi.fn(),
 }));
 
 import { getAllProperties, getProperty } from '@/lib/markdown-loader';
@@ -31,6 +35,7 @@ function property(slug: string): PropertyData {
     campaignType: 'Private Sale',
     agent: 'Stuart Grant',
     calendarId: '',
+    crmListingId: '',
     checklist: [],
     latestUpdate: '',
     analytics: [],
