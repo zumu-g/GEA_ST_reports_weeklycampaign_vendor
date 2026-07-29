@@ -1,25 +1,26 @@
 import type { Metadata } from "next";
-import { Bodoni_Moda, Schibsted_Grotesk, Spline_Sans_Mono } from "next/font/google";
+import { Playfair_Display, DM_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-// Warm Editorial Studio type system (see DESIGN.md):
-// display didone / body grotesk / mono figures.
-const display = Bodoni_Moda({
+// GEA suite type stack (see DESIGN.md): Playfair Display / DM Sans /
+// IBM Plex Mono — Google-hosted stand-ins for the licensed Klim faces.
+// Display is weight 400 only per the house rule (never bold Playfair).
+const display = Playfair_Display({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400"],
   style: ["normal", "italic"],
   variable: "--font-display",
   display: "swap",
 });
 
-const body = Schibsted_Grotesk({
+const body = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-body",
   display: "swap",
 });
 
-const mono = Spline_Sans_Mono({
+const mono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
   variable: "--font-mono",

@@ -14,11 +14,18 @@
   --accent-soft:   #E8D4A8;
   --accent-light:  var(--accent-soft); /* back-compat alias for existing consumers */
   --card-bg:       #FAF8F4; /* paper — never pure #fff per spec */
-  /* Non-spec status extensions (DESIGN.md prefers cool-toned status;
-     retuning is out of scope). */
-  --success:       #1A5C42;
-  --warning:       #B67A00;
-  --danger:        #B64400;
+  /* Status colours (DESIGN.md): cool-toned, deliberately never gold-adjacent
+     so the single gold accent keeps its authority. */
+  --status-pending:      #5B7A99;
+  --status-approved:     #4A7C6F;
+  --status-rejected:     #9A5B5B;
+  --status-pending-bg:   #EAEFF4;
+  --status-approved-bg:  #E7F0EC;
+  --status-rejected-bg:  #F3E9E9;
+  /* Legacy semantic aliases — existing consumers keep working, now cool-toned. */
+  --success:       var(--status-approved);
+  --warning:       var(--status-pending);
+  --danger:        var(--status-rejected);
 }
 
 @theme inline {
@@ -33,6 +40,12 @@
   --color-accent-light: var(--accent-light);
   --color-accent-soft:  var(--accent-soft);
   --color-card-bg:      var(--card-bg);
+  --color-status-pending:      var(--status-pending);
+  --color-status-approved:     var(--status-approved);
+  --color-status-rejected:     var(--status-rejected);
+  --color-status-pending-bg:   var(--status-pending-bg);
+  --color-status-approved-bg:  var(--status-approved-bg);
+  --color-status-rejected-bg:  var(--status-rejected-bg);
   --color-success:      var(--success);
   --color-warning:      var(--warning);
   --color-danger:       var(--danger);
@@ -41,9 +54,9 @@
   --font-body:    var(--font-body);
   --font-mono:    var(--font-mono);
 
-  /* Spec radii (Tailwind defaults differ: rounded-lg defaults to 8px). */
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  /* Spec radii (DESIGN.md: md 0.625rem, lg 1rem). */
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
 
   --animate-accent-expand: accent-expand 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
   --animate-fade-up: fade-up 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
@@ -102,7 +115,7 @@ body {
   /* Uppercase eyebrow — short label-caps in muted above headings / as status markers */
   .eyebrow {
     font-family: var(--font-body);
-    font-size: 0.8125rem; /* 13px */
+    font-size: 0.875rem; /* 14px — body-sm step on the DESIGN.md ramp */
     font-weight: 600;
     line-height: 1;
     text-transform: uppercase;
