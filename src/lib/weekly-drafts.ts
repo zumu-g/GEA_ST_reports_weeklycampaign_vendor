@@ -108,10 +108,19 @@ export async function generateWeeklyDraftForProperty(
  * gaps rather than failing (plan KTD5/KTD6).
  */
 export async function enrichDraftFromCrm(draft: WeeklyDraft): Promise<WeeklyDraft> {
-  const resolved = await resolveListing({ address: draft.propertyAddress });
-  if (!resolved.ok || !resolved.data) return applyCrmToDraft(draft, null);
+  // Prefer the stable CRM listing id stored on the property (written by
+  // live-properties when the folder was created/matched) — address resolve is
+  // fragile: the CRM matches its street-line propertyAddress, so our full
+  // "street, suburb STATE postcode" strings can miss (found live: 43 Bellagio).
+  let listingId = (await getProperty(draft.propertySlug))?.crmListingId || null;
 
-  const listing = await getReportListing(resolved.data.listingId);
+  if (!listingId) {
+    const resolved = await resolveListing({ address: draft.propertyAddress });
+    if (!resolved.ok || !resolved.data) return applyCrmToDraft(draft, null);
+    listingId = resolved.data.listingId;
+  }
+
+  const listing = await getReportListing(listingId);
   if (!listing.ok || !listing.data) return applyCrmToDraft(draft, null);
 
   return applyCrmToDraft(draft, listing.data);
