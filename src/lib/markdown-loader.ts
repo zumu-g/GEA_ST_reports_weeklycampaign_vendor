@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { getStorage } from './storage';
+import { formatBenchmarksTable, parseBenchmarksTable, type Benchmark } from './benchmarks';
 
 // Read per-call (not at module load) so PROPERTIES_DIR overrides — in tests or
 // a late-configured deploy — take effect. Matches storage.ts's read timing.
@@ -61,6 +62,7 @@ export interface PropertyData {
   checklist: { task: string; status: ChecklistStatus; done: boolean }[];
   latestUpdate: string;
   analytics: AnalyticsRow[];
+  benchmarks: Benchmark[];
   inspections: InspectionRow[];
   communications: CommunicationRow[];
   news: NewsItem[];
@@ -74,6 +76,14 @@ export interface AnalyticsRow {
   domainViews: number;
   domainEnquiries: number;
   domainSaves: number;
+  // Extended metrics (optional — absent in legacy tables)
+  reaImpressions?: number;
+  domainImpressions?: number;
+  reaDetailViews?: number;
+  domainDetailViews?: number;
+  competingListings?: number;
+  reaSpend?: number;
+  domainSpend?: number;
 }
 
 export interface InspectionRow {
@@ -197,15 +207,39 @@ export function parseAnalyticsTable(content: string): AnalyticsRow[] {
   const rows = parseMarkdownTable(content, 'Week Ending');
   return rows
     .filter(r => r['Week Ending'] && r['Week Ending'].trim() !== '')
-    .map(r => ({
-      weekEnding: r['Week Ending'] || '',
-      reaViews: parseInt(r['REA Views'] || '0', 10) || 0,
-      reaEnquiries: parseInt(r['REA Enquiries'] || '0', 10) || 0,
-      reaSaves: parseInt(r['REA Saves'] || '0', 10) || 0,
-      domainViews: parseInt(r['Domain Views'] || '0', 10) || 0,
-      domainEnquiries: parseInt(r['Domain Enquiries'] || '0', 10) || 0,
-      domainSaves: parseInt(r['Domain Saves'] || '0', 10) || 0,
-    }));
+    .map(r => {
+      // Helper: parse a column, returning undefined if the column doesn't exist
+      // (so legacy tables without the column remain unchanged). If the column
+      // exists but is empty, return undefined. If it has a value, parse it.
+      const parseOptional = (key: string): number | undefined => {
+        if (!(key in r) || r[key] === undefined || r[key].trim() === '') {
+          return undefined;
+        }
+        const parsed = parseInt(r[key], 10);
+        return isNaN(parsed) ? undefined : parsed;
+      };
+
+      return {
+        weekEnding: r['Week Ending'] || '',
+        reaViews: parseInt(r['REA Views'] || '0', 10) || 0,
+        reaEnquiries: parseInt(r['REA Enquiries'] || '0', 10) || 0,
+        reaSaves: parseInt(r['REA Saves'] || '0', 10) || 0,
+        domainViews: parseInt(r['Domain Views'] || '0', 10) || 0,
+        domainEnquiries: parseInt(r['Domain Enquiries'] || '0', 10) || 0,
+        domainSaves: parseInt(r['Domain Saves'] || '0', 10) || 0,
+        reaImpressions: parseOptional('REA Impressions'),
+        domainImpressions: parseOptional('Domain Impressions'),
+        reaDetailViews: parseOptional('REA Detail Views'),
+        domainDetailViews: parseOptional('Domain Detail Views'),
+        competingListings: parseOptional('Competing Listings'),
+        reaSpend: parseOptional('REA Spend'),
+        domainSpend: parseOptional('Domain Spend'),
+      };
+    });
+}
+
+export function parseBenchmarksFromProperty(content: string): Benchmark[] {
+  return parseBenchmarksTable(content);
 }
 
 export function parseInspectionsTable(content: string): InspectionRow[] {
@@ -312,6 +346,7 @@ export async function getProperty(slug: string): Promise<PropertyData | null> {
       checklist: parseChecklist(content),
       latestUpdate: parseLatestUpdate(content),
       analytics: parseAnalyticsTable(content),
+      benchmarks: parseBenchmarksFromProperty(content),
       inspections: parseInspectionsTable(content),
       communications: parseCommunicationsTable(content),
       news: parseMarketNews(content),
@@ -433,9 +468,12 @@ export async function createPropertyFolder(
 **${today}:** Portal created. Awaiting first weekly analytics.
 
 ## Analytics Summary
-| Week Ending | REA Views | REA Enquiries | REA Saves | Domain Views | Domain Enquiries | Domain Saves |
-|-------------|-----------|---------------|-----------|--------------|------------------|--------------|
-|             |           |               |           |              |                  |              |
+| Week Ending | REA Views | REA Enquiries | REA Saves | Domain Views | Domain Enquiries | Domain Saves | REA Impressions | Domain Impressions | REA Detail Views | Domain Detail Views | Competing Listings | REA Spend | Domain Spend |
+|-------------|-----------|---------------|-----------|--------------|------------------|--------------|-----------------|--------------------|-----------------|--------------------|--------------------|-----------|----|
+|             |           |               |           |              |                  |              |                 |                    |                 |                    |                    |           |     |
+
+## Benchmarks
+*Benchmarks are captured when reports are generated.*
 
 ## Inspection History
 | Date | Type | Groups | Interest Level | Notes |
@@ -560,10 +598,17 @@ async function appendToPropertyTable(
         enquiries: number;
         saves: number;
       };
-      // Find the analytics table and append a row or update existing week
-      const tableHeader = '| Week Ending | REA Views | REA Enquiries | REA Saves | Domain Views | Domain Enquiries | Domain Saves |';
-      const headerIdx = content.indexOf(tableHeader);
-      if (headerIdx === -1) return;
+      // Find the analytics table. Try new header first (with extended metrics),
+      // fall back to old header (6 columns) for backwards compatibility.
+      const newTableHeader = '| Week Ending | REA Views | REA Enquiries | REA Saves | Domain Views | Domain Enquiries | Domain Saves | REA Impressions | Domain Impressions | REA Detail Views | Domain Detail Views | Competing Listings | REA Spend | Domain Spend |';
+      const oldTableHeader = '| Week Ending | REA Views | REA Enquiries | REA Saves | Domain Views | Domain Enquiries | Domain Saves |';
+
+      let headerIdx = content.indexOf(newTableHeader);
+      const isNewFormat = headerIdx !== -1;
+      if (headerIdx === -1) {
+        headerIdx = content.indexOf(oldTableHeader);
+      }
+      if (headerIdx === -1) return; // No matching header found
 
       // Find separator line
       const afterHeader = content.indexOf('\n', headerIdx);
@@ -593,10 +638,12 @@ async function appendToPropertyTable(
         const newLine = '| ' + cells.join(' | ') + ' |';
         content = content.substring(0, lineStart) + newLine + content.substring(lineEnd === -1 ? content.length : lineEnd);
       } else {
-        // Add new row
+        // Add new row. If old format, append 7 cells (6 + blank extended fields).
+        // If new format, append 13 cells (6 + 7 extended). Extended fields are blank.
+        const extendedBlanks = isNewFormat ? ' | | | | | | | | ' : ' | | | | | | | ';
         const newRow = isRea
-          ? `| ${d.weekEnding} | ${d.views} | ${d.enquiries} | ${d.saves} | | | |`
-          : `| ${d.weekEnding} | | | | ${d.views} | ${d.enquiries} | ${d.saves} |`;
+          ? `| ${d.weekEnding} | ${d.views} | ${d.enquiries} | ${d.saves} | | |${extendedBlanks}|`
+          : `| ${d.weekEnding} | | | | ${d.views} | ${d.enquiries} | ${d.saves}${extendedBlanks}|`;
 
         const insertAt = afterSeparator + 1;
         content = content.substring(0, insertAt) + newRow + '\n' + content.substring(insertAt);
@@ -743,6 +790,45 @@ export async function appendMarketNews(
   const nextHeadingIdx = content.indexOf('\n## ', afterHeadingLine);
   const sectionEnd = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
   content = content.substring(0, afterHeadingLine) + bullets + '\n' + content.substring(sectionEnd);
+  await fs.writeFile(propertyPath, content, 'utf-8');
+}
+
+/**
+ * Updates the ## Benchmarks section in PROPERTY.md with the given benchmarks.
+ * Called at draft-generation time to capture suburb/bracket benchmarks.
+ */
+export async function updateBenchmarks(slug: string, benchmarks: Benchmark[]): Promise<void> {
+  assertSafeSlug(slug);
+  if (benchmarks.length === 0) return; // no-op if no benchmarks to write
+
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
+  let content: string;
+  try {
+    content = await fs.readFile(propertyPath, 'utf-8');
+  } catch {
+    return; // Property file may not exist yet
+  }
+
+  const table = formatBenchmarksTable(benchmarks);
+  if (!table) return; // Empty table (shouldn't happen if benchmarks.length > 0, but be safe)
+
+  const headingMarker = '## Benchmarks';
+  const headingIdx = content.indexOf(headingMarker);
+
+  if (headingIdx === -1) {
+    // Heading missing — append a new section
+    await fs.writeFile(propertyPath, content.trimEnd() + `\n\n${headingMarker}\n${table}\n`, 'utf-8');
+    return;
+  }
+
+  // Find the table under this heading and replace it through to the next heading
+  const afterHeadingLine = content.indexOf('\n', headingIdx) + 1;
+  const nextHeadingIdx = content.indexOf('\n## ', afterHeadingLine);
+  const sectionEnd = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
+
+  const newSection = `${table}\n`;
+  content = content.substring(0, afterHeadingLine) + newSection + content.substring(sectionEnd);
+
   await fs.writeFile(propertyPath, content, 'utf-8');
 }
 

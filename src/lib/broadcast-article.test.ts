@@ -41,7 +41,7 @@ function property(slug: string): PropertyData {
     analytics: [],
     inspections: [],
     communications: [],
-    news: [],
+    news: [], benchmarks: [],
   };
 }
 
