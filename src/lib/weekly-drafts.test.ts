@@ -25,7 +25,7 @@ function property(slug: string): PropertyData {
   return {
     slug, address: `${slug} St`, owner: '', contact: '', listed: '2026-06-01', priceGuide: '$1m',
     campaignType: 'Private Sale', agent: 'Stuart Grant', calendarId: '', crmListingId: '',
-    checklist: [], latestUpdate: '', analytics: [], inspections: [], communications: [], news: [],
+    checklist: [], latestUpdate: '', analytics: [], inspections: [], communications: [], news: [], benchmarks: [],
   };
 }
 

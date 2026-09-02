@@ -12,7 +12,7 @@ function property(slug: string, address: string, owner = 'Owner'): PropertyData 
   return {
     slug, address, owner, contact: '', listed: '', priceGuide: '', campaignType: '',
     agent: '', calendarId: '', crmListingId: '', checklist: [], latestUpdate: '',
-    analytics: [], inspections: [], communications: [], news: [],
+    analytics: [], inspections: [], communications: [], news: [], benchmarks: [],
   };
 }
 

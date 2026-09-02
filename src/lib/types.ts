@@ -55,6 +55,14 @@ export interface WeeklyDraft {
   newsArticles: NewsArticle[];
   generatedNarrative: GeneratedReportNarrative | null;
   messages: ChatMessage[];
+  // Extended metrics (optional — absent in legacy properties)
+  reaImpressions?: number;
+  domainImpressions?: number;
+  reaDetailViews?: number;
+  domainDetailViews?: number;
+  competingListings?: number;
+  reaSpend?: number;
+  domainSpend?: number;
   /**
    * Per-field provenance for CRM-sourced values. Keyed by WeeklyDraft field name
    * (e.g. 'reaViews'). Absent keys mean the field was never CRM-populated.

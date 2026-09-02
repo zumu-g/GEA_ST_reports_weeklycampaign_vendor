@@ -25,6 +25,10 @@ import SectionHeading from '@/components/SectionHeading';
 import DailyQuote from '@/components/vendor/DailyQuote';
 import TrendBadge from '@/components/vendor/TrendBadge';
 import WeeklyTrend from '@/components/vendor/WeeklyTrend';
+import ActivityFunnel from '@/components/vendor/ActivityFunnel';
+import BenchmarkComparison from '@/components/vendor/BenchmarkComparison';
+import CompetitionContext from '@/components/vendor/CompetitionContext';
+import CampaignSpend from '@/components/vendor/CampaignSpend';
 import { getDailyQuote } from '@/lib/quotes';
 
 // Property markdown is the live record and is read fresh on every request
@@ -186,17 +190,14 @@ export default async function VendorDashboard({
           <ActivityFeed slug={property.slug} />
         </div>
 
-        {/* ── Latest Update ────────────────────────────────── */}
+        {/* ── Latest Update — editorial pull-quote (Hybrid design) ── */}
         {property.latestUpdate && (
-          <section className="mb-10" data-tour="latest-update">
-            <div className="bg-accent/12 rounded-lg px-5 py-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="font-body text-[10px] text-accent font-semibold uppercase tracking-widest">Update from Your Agent</p>
-                <p className="font-body text-[10px] text-muted">{reportDate}</p>
-              </div>
-              <p className="font-body text-base text-foreground leading-relaxed max-w-[65ch]">{property.latestUpdate}</p>
-              <p className="font-body text-xs text-muted mt-3">{property.agent || 'Stuart Grant'}</p>
-            </div>
+          <section className="mb-12" data-tour="latest-update">
+            <p className="eyebrow text-[11px] mb-3">From Your Agent</p>
+            <p className="font-display text-xl sm:text-2xl font-normal text-foreground leading-snug max-w-[48ch]">
+              &ldquo;{property.latestUpdate}&rdquo;
+            </p>
+            <p className="font-body text-xs text-muted mt-3">{property.agent || 'Stuart Grant'} · {reportDate}</p>
           </section>
         )}
 
@@ -232,11 +233,15 @@ export default async function VendorDashboard({
               meta={latestAnalytics ? <span className="font-body text-xs text-muted">Week ending {latestAnalytics.weekEnding}</span> : undefined}
             />
 
-            {/* Campaign totals */}
-            <div className="grid grid-cols-3 gap-4 sm:gap-8 mb-8 pb-8 border-b border-border">
+            {/* Dominant metric + side rows (Hybrid design: Option C body) */}
+            <div className="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr] gap-8 sm:gap-10 mb-8 pb-8 border-b border-border sm:items-end">
               <div>
+                <p className="eyebrow text-[11px] mb-2.5">Total buyer views · campaign to date</p>
                 <div className="flex items-baseline gap-0">
-                  <p className="font-mono text-3xl sm:text-4xl font-medium text-foreground tabular-nums leading-none">
+                  <p
+                    className="font-mono font-normal text-foreground tabular-nums tracking-[-0.02em]"
+                    style={{ fontSize: 'clamp(4rem, 12vw, 6rem)', lineHeight: 0.95 }}
+                  >
                     {(totals.reaViews + totals.domainViews).toLocaleString()}
                   </p>
                   {latestAnalytics && previousAnalytics && (
@@ -246,122 +251,57 @@ export default async function VendorDashboard({
                     />
                   )}
                 </div>
-                <p className="font-body text-xs text-muted mt-2">People who viewed your listing</p>
-                <p className="font-body text-[10px] text-muted/60 mt-0.5 hidden sm:block">realestate.com.au + domain.com.au</p>
+                <p className="font-body text-[13px] text-muted mt-2.5">realestate.com.au + domain.com.au</p>
               </div>
               <div>
-                <div className="flex items-baseline gap-0">
-                  <p className="font-mono text-2xl font-medium text-foreground tabular-nums leading-none">
-                    {(totals.reaEnquiries + totals.domainEnquiries).toLocaleString()}
-                  </p>
-                  {latestAnalytics && previousAnalytics && (
-                    <TrendBadge
-                      current={latestAnalytics.reaEnquiries + latestAnalytics.domainEnquiries}
-                      previous={previousAnalytics.reaEnquiries + previousAnalytics.domainEnquiries}
-                    />
-                  )}
+                <div className="flex items-baseline justify-between py-3 border-t border-border">
+                  <p className="font-body text-sm text-muted">Buyer enquiries</p>
+                  <div className="flex items-baseline">
+                    <p className="font-mono text-2xl font-medium text-foreground tabular-nums leading-none">
+                      {(totals.reaEnquiries + totals.domainEnquiries).toLocaleString()}
+                    </p>
+                    {latestAnalytics && previousAnalytics && (
+                      <TrendBadge
+                        current={latestAnalytics.reaEnquiries + latestAnalytics.domainEnquiries}
+                        previous={previousAnalytics.reaEnquiries + previousAnalytics.domainEnquiries}
+                      />
+                    )}
+                  </div>
                 </div>
-                <p className="font-body text-xs text-muted mt-2">Buyer enquiries</p>
-              </div>
-              <div>
-                <div className="flex items-baseline gap-0">
-                  <p className="font-mono text-2xl font-medium text-foreground tabular-nums leading-none">
-                    {(totals.reaSaves + totals.domainSaves).toLocaleString()}
-                  </p>
-                  {latestAnalytics && previousAnalytics && (
-                    <TrendBadge
-                      current={latestAnalytics.reaSaves + latestAnalytics.domainSaves}
-                      previous={previousAnalytics.reaSaves + previousAnalytics.domainSaves}
-                    />
-                  )}
+                <div className="flex items-baseline justify-between py-3 border-t border-border">
+                  <p className="font-body text-sm text-muted">Watchlists</p>
+                  <div className="flex items-baseline">
+                    <p className="font-mono text-2xl font-medium text-foreground tabular-nums leading-none">
+                      {(totals.reaSaves + totals.domainSaves).toLocaleString()}
+                    </p>
+                    {latestAnalytics && previousAnalytics && (
+                      <TrendBadge
+                        current={latestAnalytics.reaSaves + latestAnalytics.domainSaves}
+                        previous={previousAnalytics.reaSaves + previousAnalytics.domainSaves}
+                      />
+                    )}
+                  </div>
                 </div>
-                <p className="font-body text-xs text-muted mt-2">Added to watchlists</p>
+                <div className="flex items-baseline justify-between py-3 border-t border-b border-border">
+                  <p className="font-body text-sm text-muted">Inspections</p>
+                  <p className="font-mono text-2xl font-medium text-foreground tabular-nums leading-none">
+                    {property.inspections.length > 0 ? property.inspections.length : '—'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Per-portal breakdown — no nested stat boxes */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                {
-                  name: 'realestate.com.au',
-                  color: 'bg-red-500',
-                  stats: [
-                    {
-                      label: 'Views',
-                      value: totals.reaViews,
-                      current: latestAnalytics?.reaViews,
-                      previous: previousAnalytics?.reaViews,
-                    },
-                    {
-                      label: 'Enquiries',
-                      value: totals.reaEnquiries,
-                      current: latestAnalytics?.reaEnquiries,
-                      previous: previousAnalytics?.reaEnquiries,
-                    },
-                    {
-                      label: 'Watchlisted',
-                      value: totals.reaSaves,
-                      current: latestAnalytics?.reaSaves,
-                      previous: previousAnalytics?.reaSaves,
-                    },
-                  ],
-                },
-                {
-                  name: 'domain.com.au',
-                  color: 'bg-emerald-500',
-                  stats: [
-                    {
-                      label: 'Views',
-                      value: totals.domainViews,
-                      current: latestAnalytics?.domainViews,
-                      previous: previousAnalytics?.domainViews,
-                    },
-                    {
-                      label: 'Enquiries',
-                      value: totals.domainEnquiries,
-                      current: latestAnalytics?.domainEnquiries,
-                      previous: previousAnalytics?.domainEnquiries,
-                    },
-                    {
-                      label: 'Watchlisted',
-                      value: totals.domainSaves,
-                      current: latestAnalytics?.domainSaves,
-                      previous: previousAnalytics?.domainSaves,
-                    },
-                  ],
-                },
-              ].map(portal => (
-                <div key={portal.name} className="bg-card-bg rounded border border-border overflow-hidden">
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-5">
-                      <span className={`w-2 h-2 rounded-full ${portal.color} flex-shrink-0`} />
-                      <span className="font-body text-sm font-semibold text-foreground">{portal.name}</span>
-                    </div>
-                    <div className="space-y-0">
-                      {portal.stats.map((s, i) => (
-                        <div
-                          key={s.label}
-                          className={`flex items-baseline justify-between py-3 ${i > 0 ? 'border-t border-border' : ''}`}
-                        >
-                          <p className="font-body text-sm text-muted">{s.label}</p>
-                          <div className="flex items-baseline">
-                            <p className="font-mono text-lg font-medium tabular-nums text-foreground">{s.value.toLocaleString()}</p>
-                            {s.current !== undefined && (
-                              <TrendBadge current={s.current} previous={s.previous} />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </section>
         )}
 
         {/* ── Weekly Trend ─────────────────────────────────── */}
         <WeeklyTrend analytics={property.analytics} />
+
+        {/* ── Extended Metrics (U4) ────────────────────────── */}
+        <ActivityFunnel analytics={property.analytics} />
+        <BenchmarkComparison benchmarks={property.benchmarks} />
+        <CompetitionContext analytics={property.analytics} />
+        <CampaignSpend analytics={property.analytics} />
 
         {/* ── What's Next (live; web only) ─────────────────── */}
         <div className="print:hidden">
