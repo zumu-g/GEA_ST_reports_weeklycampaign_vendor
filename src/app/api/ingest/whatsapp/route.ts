@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveProperty } from '@/lib/property-registry';
 import { writeInspectionFile, appendActivity } from '@/lib/markdown-loader';
-import { parseFreeformNote, parseTelegramMessage, parseBuyerShorthand } from '@/lib/message-parsers';
+import { parseFreeformNote, parseTelegramMessage, parseBuyerShorthand, parseOfferShorthand } from '@/lib/message-parsers';
 import { verifyTwilioSignature, signedUrlForPath } from '@/lib/twilio-signature';
 import { upsertBuyer } from '@/lib/buyers';
+import { addOffer } from '@/lib/offers';
 
 export const runtime = 'nodejs';
 
@@ -66,6 +67,19 @@ export async function POST(request: NextRequest) {
 
   const message = params.Body || '';
   if (!message) {
+    return emptyTwiml();
+  }
+
+  const offerShorthand = parseOfferShorthand(message);
+  if (offerShorthand) {
+    const property = await resolveProperty(offerShorthand.propertyText);
+    if (!property) return emptyTwiml();
+    await addOffer(property.slug, {
+      buyerFirstName: offerShorthand.firstName,
+      amount: offerShorthand.amount,
+      conditions: offerShorthand.conditions,
+      settlementDays: offerShorthand.settlementDays,
+    });
     return emptyTwiml();
   }
 

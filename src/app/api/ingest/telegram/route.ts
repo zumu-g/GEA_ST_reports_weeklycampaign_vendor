@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveProperty } from '@/lib/property-registry';
 import { writeInspectionFile, appendActivity } from '@/lib/markdown-loader';
 import { ingestGuard } from '@/lib/agent-auth';
-import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage, parseBuyerShorthand } from '@/lib/message-parsers';
+import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage, parseBuyerShorthand, parseOfferShorthand } from '@/lib/message-parsers';
 import { fetchArticleMeta } from '@/lib/article-meta';
 import { broadcastArticleToAllDrafts, getReportWeekEnding } from '@/lib/weekly-drafts';
 import { upsertBuyer } from '@/lib/buyers';
+import { addOffer } from '@/lib/offers';
 
 export async function POST(request: NextRequest) {
   const denied = ingestGuard(request);
@@ -52,6 +53,32 @@ export async function POST(request: NextRequest) {
         weekEnding,
         updated,
         skipped,
+      });
+    }
+
+    // Offer shorthand path — checked ahead of the buyer and note parsers
+    // since its "offer:" prefix is specific.
+    const offerShorthand = parseOfferShorthand(message);
+    if (offerShorthand) {
+      const property = await resolveProperty(offerShorthand.propertyText);
+      if (!property) {
+        return NextResponse.json(
+          { error: 'Could not match property', searched: offerShorthand.propertyText },
+          { status: 404 }
+        );
+      }
+      const offer = await addOffer(property.slug, {
+        buyerFirstName: offerShorthand.firstName,
+        amount: offerShorthand.amount,
+        conditions: offerShorthand.conditions,
+        settlementDays: offerShorthand.settlementDays,
+      });
+      return NextResponse.json({
+        success: true,
+        kind: 'offer',
+        property: property.address,
+        slug: property.slug,
+        offer: { id: offer.id, amount: offer.amount, status: offer.status },
       });
     }
 

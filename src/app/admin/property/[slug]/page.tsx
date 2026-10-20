@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import AgentNotes from '@/components/admin/AgentNotes';
 import AgentDocuments from '@/components/admin/AgentDocuments';
+import AgentOffers from '@/components/admin/AgentOffers';
 import { readOpens } from '@/lib/markdown-loader';
 
 export default async function AdminPropertyPage({
@@ -28,6 +29,7 @@ export default async function AdminPropertyPage({
           </ul>
         </section>
       )}
+      <AgentOffers slug={slug} />
       <AgentNotes slug={slug} />
       <AgentDocuments slug={slug} />
     </main>

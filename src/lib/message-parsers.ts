@@ -125,6 +125,57 @@ export function parseBuyerShorthand(message: string): {
   };
 }
 
+// Parses a single dollar figure like "705k" or "1.2m" into dollars.
+function parseDollarFigure(text: string): number | null {
+  const m = text.match(/\$?([\d.]+)\s*(k|m)?/i);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  if (isNaN(n)) return null;
+  const unit = m[2]?.toLowerCase();
+  if (unit === 'k') return n * 1_000;
+  if (unit === 'm') return n * 1_000_000;
+  return n;
+}
+
+// Parses offer shorthand: "85 Centenary | offer: Priya 705k, finance 14
+// days, settle 60" — first name, amount, free-text conditions, and an
+// optional settlement day count.
+export function parseOfferShorthand(message: string): {
+  propertyText: string;
+  firstName: string;
+  amount: number;
+  conditions: string;
+  settlementDays?: number;
+} | null {
+  if (!message.includes('|')) return null;
+  const parts = message.split('|').map(p => p.trim());
+  if (parts.length < 2) return null;
+  const offerMatch = parts[1].match(/^offer\s*:\s*(.+)$/i);
+  if (!offerMatch) return null;
+
+  const propertyText = parts[0];
+  const fields = offerMatch[1].split(',').map(f => f.trim()).filter(Boolean);
+  if (fields.length === 0) return null;
+
+  const [nameWord, ...priceWords] = fields[0].split(/\s+/);
+  const firstName = nameWord || '';
+  const amount = parseDollarFigure(priceWords.join(' '));
+  if (!firstName || amount === null) return null;
+
+  const rest = fields.slice(1);
+  const settlementField = rest.find(f => /settle/i.test(f));
+  const settlementMatch = settlementField?.match(/(\d+)/);
+  const conditions = rest.filter(f => f !== settlementField).join(', ');
+
+  return {
+    propertyText,
+    firstName,
+    amount,
+    conditions,
+    ...(settlementMatch ? { settlementDays: parseInt(settlementMatch[1], 10) } : {}),
+  };
+}
+
 // Parses inspection shorthand:
 // "85 Centenary | open | 3 groups | 1 interested | felt overpriced"
 // "14 Hartsmere: private, John Smith, very keen, wants 2nd look"

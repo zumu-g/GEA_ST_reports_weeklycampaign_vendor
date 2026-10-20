@@ -23,6 +23,7 @@ import LocalMarket from '@/components/vendor/LocalMarket';
 import DownloadButton from '@/components/vendor/DownloadButton';
 import InspectionHistory from '@/components/InspectionHistory';
 import InterestedBuyers from '@/components/vendor/InterestedBuyers';
+import OffersRegister from '@/components/vendor/OffersRegister';
 import { projectBuyersForVendor } from '@/lib/buyers';
 import SectionHeading from '@/components/SectionHeading';
 import DailyQuote from '@/components/vendor/DailyQuote';
@@ -216,6 +217,9 @@ export default async function VendorDashboard({
 
         {/* ── Interested Buyers (U2) ──────────────────────── */}
         <InterestedBuyers buyers={buyers} />
+
+        {/* ── Offers (U6) ──────────────────────────────────── */}
+        <OffersRegister token={token} />
 
         {property.inspections.length === 0 && (
           <section className="mb-10">

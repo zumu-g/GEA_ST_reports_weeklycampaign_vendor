@@ -162,3 +162,19 @@ export async function projectBuyersForVendor(slug: string): Promise<VendorBuyer[
     latestFeedback: b.feedback[b.feedback.length - 1]?.note,
   }));
 }
+
+// Resolves one buyer's vendor-facing display name (first name, or the same
+// anonymous "Buyer A/B/C" label projectBuyersForVendor would assign). Used
+// by offers.ts so a vendor-facing offer can name who made it without ever
+// exposing the buyer record itself (U6). Falls back to "A buyer" if the id
+// is unknown (e.g. an offer logged without a matching buyer record).
+export async function getBuyerDisplayName(slug: string, buyerId: string): Promise<string> {
+  const [buyers, property] = await Promise.all([readBuyers(slug), getProperty(slug)]);
+  const buyer = buyers.find(b => b.id === buyerId);
+  if (!buyer) return 'A buyer';
+  if (property?.buyerDisplay !== 'anonymous') return buyer.firstName;
+
+  const byCreated = buyers.slice().sort((a, b) => a.created.localeCompare(b.created));
+  const idx = byCreated.findIndex(b => b.id === buyerId);
+  return `Buyer ${String.fromCharCode(65 + idx)}`;
+}

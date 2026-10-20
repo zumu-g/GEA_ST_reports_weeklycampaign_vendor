@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage, parseBuyerShorthand } from './message-parsers';
+import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage, parseBuyerShorthand, parseOfferShorthand } from './message-parsers';
 
 describe('parseArticleBroadcast', () => {
   it('parses trigger phrase + URL + title/summary lines', () => {
@@ -142,5 +142,32 @@ describe('parseBuyerShorthand', () => {
 
   it('returns null for a message with no pipe at all', () => {
     expect(parseBuyerShorthand('buyer: Priya, finance approved')).toBeNull();
+  });
+});
+
+describe('parseOfferShorthand', () => {
+  it('parses name, amount, conditions and settlement days', () => {
+    const result = parseOfferShorthand('85 Centenary | offer: Priya 705k, finance 14 days, settle 60');
+    expect(result).toEqual({
+      propertyText: '85 Centenary',
+      firstName: 'Priya',
+      amount: 705_000,
+      conditions: 'finance 14 days',
+      settlementDays: 60,
+    });
+  });
+
+  it('parses a million-figure amount and omits settlementDays when absent', () => {
+    const result = parseOfferShorthand('85 Centenary | offer: Priya 1.2m, cash');
+    expect(result).toMatchObject({ amount: 1_200_000, conditions: 'cash' });
+    expect(result?.settlementDays).toBeUndefined();
+  });
+
+  it('returns null for a pipe message that is not an offer: form', () => {
+    expect(parseOfferShorthand('85 Centenary | buyer: Priya')).toBeNull();
+  });
+
+  it('returns null when no amount can be parsed', () => {
+    expect(parseOfferShorthand('85 Centenary | offer: Priya')).toBeNull();
   });
 });
