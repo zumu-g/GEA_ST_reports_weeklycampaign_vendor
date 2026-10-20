@@ -47,6 +47,16 @@ export function getTokenMeta(token: string): TokenMeta {
   return meta[token] ?? {};
 }
 
+// Resolves a vendor token to its property slug and owner meta in one read, so
+// every /api/vendor/* route can refuse an unknown token before doing any work
+// rather than accepting a slug or email the caller supplied directly (R12).
+export function resolveVendorToken(token: string): { slug: string; meta: TokenMeta } | null {
+  const { tokens, meta } = readStore();
+  const slug = tokens[token];
+  if (!slug) return null;
+  return { slug, meta: meta[token] ?? {} };
+}
+
 export function generateToken(): string {
   return crypto.randomBytes(9).toString('base64url').slice(0, 12);
 }

@@ -114,7 +114,7 @@ export default async function LandlordDashboard({
           )}
 
           {/* What's Next — ClickUp tasks tagged vendor */}
-          <CampaignTimeline slug={property.slug} />
+          <CampaignTimeline token={token} />
         </div>
 
         {/* Analytics */}

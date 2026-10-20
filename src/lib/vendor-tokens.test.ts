@@ -5,6 +5,7 @@ import {
   getTokenMeta,
   getAllTokens,
   generateToken,
+  resolveVendorToken,
 } from '@/lib/vendor-tokens';
 
 // These read the committed src/lib/vendor-tokens.json (read-only helpers).
@@ -54,6 +55,25 @@ describe('getAllTokens', () => {
     const all = getAllTokens();
     expect(all['k7mP2xQn9rLs']).toBe('85-centenary-blvd-officer-south');
     expect(Object.keys(all).length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe('resolveVendorToken', () => {
+  it('resolves a valid token to slug and meta in one read', () => {
+    const resolved = resolveVendorToken('rcRKLnzG5ktn');
+    expect(resolved?.slug).toBe('17-juliet-gardens-pakenham');
+    expect(resolved?.meta.ownerName).toBe('Lynn');
+  });
+
+  it('returns an empty meta object for a token with no stored meta', () => {
+    const resolved = resolveVendorToken('k7mP2xQn9rLs');
+    expect(resolved?.slug).toBe('85-centenary-blvd-officer-south');
+    expect(resolved?.meta).toEqual({});
+  });
+
+  it('returns null for an unknown token', () => {
+    expect(resolveVendorToken('not-a-real-token')).toBeNull();
+    expect(resolveVendorToken('')).toBeNull();
   });
 });
 

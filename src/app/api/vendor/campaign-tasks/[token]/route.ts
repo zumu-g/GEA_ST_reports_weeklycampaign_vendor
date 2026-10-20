@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveVendorToken } from '@/lib/vendor-tokens';
+import { getRentalSlugForToken } from '@/lib/rental-tokens';
 import { CLICKUP_LIST_IDS, CampaignTask } from '@/lib/clickup-config';
+
+// Shared by the vendor and landlord/rental dashboards (CampaignTimeline),
+// so a token resolves against either store — never a caller-supplied slug.
+function resolveSlugForToken(token: string): string | null {
+  return resolveVendorToken(token)?.slug ?? getRentalSlugForToken(token);
+}
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  { params }: { params: Promise<{ token: string }> }
 ) {
-  const { slug } = await params;
-  const listId = CLICKUP_LIST_IDS[slug];
+  const { token } = await params;
+  const slug = resolveSlugForToken(token);
+  if (!slug) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 404 });
+  }
 
+  const listId = CLICKUP_LIST_IDS[slug];
   if (!listId) {
     return NextResponse.json({ tasks: [] });
   }

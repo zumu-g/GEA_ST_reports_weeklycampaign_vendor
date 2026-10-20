@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPropertyFolder, slugifyAddress } from '@/lib/markdown-loader';
 import { assignToken } from '@/lib/vendor-tokens';
 import { authorised } from '@/lib/agent-auth';
+import { sendEmail, renderVendorEmail } from '@/lib/notify-email';
 
 export async function POST(request: NextRequest) {
   if (!authorised(request)) {
@@ -26,14 +27,12 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const portalUrl = `${baseUrl}/vendor/${token}`;
 
-    // Send welcome email if notify route is available and owner has an email
+    // Send welcome email directly via the shared helper — never loop back
+    // over HTTP to the now token-only /api/vendor/notify route.
     if (contact && contact.includes('@')) {
       try {
-        await fetch(`${baseUrl}/api/vendor/notify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, ownerName: owner, ownerEmail: contact, address, portalUrl }),
-        });
+        const html = renderVendorEmail({ ownerName: owner, address, portalUrl });
+        await sendEmail({ to: contact, subject: `Your vendor portal is ready — ${address}`, html });
       } catch {
         // Non-fatal — email failure shouldn't block property creation
       }

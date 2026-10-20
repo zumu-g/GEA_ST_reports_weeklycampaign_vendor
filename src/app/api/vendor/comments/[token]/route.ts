@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPropertySlugForToken, getTokenMeta } from '@/lib/vendor-tokens';
 import { appendComment, readComments, appendActivity, getProperty } from '@/lib/markdown-loader';
+import { sendEmail, renderVendorEmail } from '@/lib/notify-email';
 
 export async function GET(
   _request: NextRequest,
@@ -35,23 +36,18 @@ export async function POST(
     summary: text.slice(0, 140),
   });
 
-  // Best-effort email notify to agent (if configured)
+  // Best-effort email notify to agent (if configured) — direct helper call,
+  // never a loop back through the now token-only /api/vendor/notify route.
   try {
     const agentEmail = process.env.AGENT_NOTIFY_EMAIL;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:3000`;
     if (agentEmail) {
       const property = await getProperty(slug);
-      await fetch(`${baseUrl}/api/vendor/notify`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          ownerName: 'Stuart',
-          ownerEmail: agentEmail,
-          address: property?.address || slug,
-          portalUrl: `${baseUrl}/vendor/${token}`,
-          message: `${meta.ownerName || 'A vendor'} posted a new comment: "${text}"`,
-        }),
-      });
+      const address = property?.address || slug;
+      const portalUrl = `${baseUrl}/vendor/${token}`;
+      const message = `${meta.ownerName || 'A vendor'} posted a new comment: "${text}"`;
+      const html = renderVendorEmail({ ownerName: 'Stuart', address, portalUrl, message });
+      await sendEmail({ to: agentEmail, subject: `Update on your campaign — ${address}`, html });
     }
   } catch {
     // notification is best-effort

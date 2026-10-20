@@ -305,7 +305,7 @@ export default async function VendorDashboard({
 
         {/* ── What's Next (live; web only) ─────────────────── */}
         <div className="print:hidden">
-          <CampaignTimeline slug={property.slug} />
+          <CampaignTimeline token={token} />
 
           {/* ── Campaign Checklist (interactive; web only) ──── */}
           {property.checklist.length > 0 && (

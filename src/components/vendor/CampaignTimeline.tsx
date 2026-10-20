@@ -5,7 +5,7 @@ import type { CampaignTask } from '@/lib/clickup-config';
 import SectionHeading from '@/components/SectionHeading';
 
 interface CampaignTimelineProps {
-  slug: string;
+  token: string;
 }
 
 function formatDueDate(dueDateMs: string | null): string {
@@ -30,19 +30,19 @@ function dueDateColour(dueDateMs: string | null): string {
   return 'text-muted';
 }
 
-export default function CampaignTimeline({ slug }: CampaignTimelineProps) {
+export default function CampaignTimeline({ token }: CampaignTimelineProps) {
   const [tasks, setTasks] = useState<CampaignTask[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/vendor/campaign-tasks/${encodeURIComponent(slug)}`)
+    fetch(`/api/vendor/campaign-tasks/${encodeURIComponent(token)}`)
       .then(r => r.json())
       .then(d => {
         setTasks(d.tasks ?? []);
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
-  }, [slug]);
+  }, [token]);
 
   if (!loaded) return null;
   if (tasks.length === 0) return null;
