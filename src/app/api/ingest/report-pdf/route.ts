@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
       views: parsed.views,
       enquiries: parsed.enquiries,
       saves: parsed.saves,
+      capturedAt: new Date().toISOString(),
+      ...(parsed.shares != null ? { shares: parsed.shares } : {}),
     });
 
     return NextResponse.json({

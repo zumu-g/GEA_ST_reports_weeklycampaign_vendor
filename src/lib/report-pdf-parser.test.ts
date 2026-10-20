@@ -51,7 +51,18 @@ describe('parseReportText', () => {
       expect(result.enquiries).toBe(5);
       expect(result.saves).toBe(17);
       expect(result.searchAppearances).toBe(0);
+      expect(result.shares).toBeUndefined();
     }
+  });
+
+  it('extracts shares when the report text names a figure, omits it otherwise', () => {
+    const withShares = parseReportText(REA_FIXTURE + '\nShares: 12\n');
+    expect(isParseFailure(withShares)).toBe(false);
+    if (!isParseFailure(withShares)) expect(withShares.shares).toBe(12);
+
+    const withoutShares = parseReportText(REA_FIXTURE);
+    expect(isParseFailure(withoutShares)).toBe(false);
+    if (!isParseFailure(withoutShares)) expect(withoutShares.shares).toBeUndefined();
   });
 
   it('reports the specific missing field rather than guessing', () => {

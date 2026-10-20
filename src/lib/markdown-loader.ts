@@ -868,61 +868,100 @@ export async function setCrmListingId(slug: string, listingId: string): Promise<
   await fs.writeFile(propertyPath, content, 'utf-8');
 }
 
-// --- Stats sidecar (denormalised weekly snapshots from REA/Domain) ---
+// --- Stats sidecar (REA/Domain/grantsea snapshots; daily or weekly) ---
 
 export interface StatsRow {
   weekEnding: string;
-  source: string; // 'rea' | 'domain'
+  source: string; // 'rea' | 'domain' | 'grantsea'
   views: number;
   enquiries: number;
   saves: number;
+  /** ISO capture timestamp (U4). Absent on legacy weekly rows — treated as
+   *  captured at the end of that week, so no migration is needed. */
+  capturedAt?: string;
+  shares?: number;
+}
+
+// A row's capture instant for upsert-keying and the tile's "as at" display:
+// its own capturedAt, or the end of its week when absent (KTD3).
+export function effectiveCapturedAt(row: Pick<StatsRow, 'weekEnding' | 'capturedAt'>): string {
+  return row.capturedAt || `${row.weekEnding}T23:59:59.999Z`;
 }
 
 export async function readStats(slug: string): Promise<StatsRow[]> {
   return readJsonSidecar<StatsRow>(slug, 'stats.json');
 }
 
+// Upsert key is capture date + source, so a daily row and a weekly row for
+// the same week don't collide unless they land on the same calendar date.
 export async function upsertStats(slug: string, row: StatsRow): Promise<void> {
   const items = await readStats(slug);
   const src = row.source.toLowerCase();
+  const dateKey = effectiveCapturedAt(row).slice(0, 10);
   const idx = items.findIndex(
-    s => s.weekEnding === row.weekEnding && s.source.toLowerCase() === src,
+    s => effectiveCapturedAt(s).slice(0, 10) === dateKey && s.source.toLowerCase() === src,
   );
   const normalised: StatsRow = { ...row, source: src };
   if (idx >= 0) items[idx] = normalised;
   else items.push(normalised);
-  items.sort((a, b) => (a.weekEnding < b.weekEnding ? 1 : -1));
+  items.sort((a, b) => (effectiveCapturedAt(a) < effectiveCapturedAt(b) ? 1 : -1));
   await writeJsonSidecar(slug, 'stats.json', items);
 }
 
+export interface LiveSourceStats {
+  source: string;
+  views: number;
+  enquiries: number;
+  saves: number;
+  shares: number | null;
+  viewsDelta: number;
+  enquiriesDelta: number;
+  capturedAt: string;
+}
+
 export interface LiveStats {
-  reaViews: number; reaEnquiries: number;
-  domainViews: number; domainEnquiries: number;
-  reaViewsDelta: number; reaEnquiriesDelta: number;
-  domainViewsDelta: number; domainEnquiriesDelta: number;
-  weekEnding: string | null;
+  bySource: LiveSourceStats[];
+  /** Oldest capturedAt among each source's latest row — the tile's "as at" line. */
+  asAt: string | null;
 }
 
 export async function getLiveStats(slug: string): Promise<LiveStats | null> {
   const rows = await readStats(slug);
   if (!rows.length) return null;
-  const weeks = Array.from(new Set(rows.map(r => r.weekEnding))).sort().reverse();
-  const [w0, w1] = weeks;
-  const pick = (we: string | undefined, src: string) =>
-    rows.find(r => r.weekEnding === we && r.source.toLowerCase() === src);
-  const r0 = pick(w0, 'rea'); const d0 = pick(w0, 'domain');
-  const r1 = pick(w1, 'rea'); const d1 = pick(w1, 'domain');
-  return {
-    reaViews: r0?.views ?? 0,
-    reaEnquiries: r0?.enquiries ?? 0,
-    domainViews: d0?.views ?? 0,
-    domainEnquiries: d0?.enquiries ?? 0,
-    reaViewsDelta: (r0?.views ?? 0) - (r1?.views ?? 0),
-    reaEnquiriesDelta: (r0?.enquiries ?? 0) - (r1?.enquiries ?? 0),
-    domainViewsDelta: (d0?.views ?? 0) - (d1?.views ?? 0),
-    domainEnquiriesDelta: (d0?.enquiries ?? 0) - (d1?.enquiries ?? 0),
-    weekEnding: w0 ?? null,
-  };
+
+  const sources = Array.from(new Set(rows.map(r => r.source.toLowerCase())));
+  const bySource: LiveSourceStats[] = [];
+
+  for (const source of sources) {
+    const rowsForSource = rows
+      .filter(r => r.source.toLowerCase() === source)
+      .sort((a, b) => (effectiveCapturedAt(a) < effectiveCapturedAt(b) ? 1 : -1));
+    const latest = rowsForSource[0];
+    const latestMs = new Date(effectiveCapturedAt(latest)).getTime();
+    // Week-over-week delta: the latest row vs. the latest row captured at
+    // least 7 days earlier — stable whether the history is weekly or daily.
+    const previous = rowsForSource.find(
+      r => latestMs - new Date(effectiveCapturedAt(r)).getTime() >= 7 * 24 * 60 * 60 * 1000,
+    );
+
+    bySource.push({
+      source,
+      views: latest.views,
+      enquiries: latest.enquiries,
+      saves: latest.saves,
+      shares: latest.shares ?? null,
+      viewsDelta: latest.views - (previous?.views ?? latest.views),
+      enquiriesDelta: latest.enquiries - (previous?.enquiries ?? latest.enquiries),
+      capturedAt: effectiveCapturedAt(latest),
+    });
+  }
+
+  const asAt = bySource.reduce<string | null>(
+    (oldest, s) => (oldest === null || s.capturedAt < oldest ? s.capturedAt : oldest),
+    null,
+  );
+
+  return { bySource, asAt };
 }
 
 // --- Opens sidecar ---

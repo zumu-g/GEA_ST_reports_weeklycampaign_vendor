@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   if (denied) return denied;
   try {
     const body = await request.json();
-    const { property, source, weekEnding, views, enquiries, saves, searchAppearances } = body;
+    const { property, source, weekEnding, views, enquiries, saves, searchAppearances, shares, capturedAt } = body;
 
     if (!property || !source || !weekEnding) {
       return NextResponse.json(
@@ -31,6 +31,8 @@ export async function POST(request: NextRequest) {
       views: Number(views) || 0,
       enquiries: Number(enquiries) || 0,
       saves: Number(saves) || 0,
+      capturedAt: capturedAt || new Date().toISOString(),
+      ...(shares != null ? { shares: Number(shares) || 0 } : {}),
     });
 
     return NextResponse.json({

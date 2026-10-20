@@ -15,6 +15,7 @@ import ActivityFeed from '@/components/vendor/ActivityFeed';
 import ActivityTicker from '@/components/vendor/ActivityTicker';
 import LiveStatsTile from '@/components/vendor/LiveStatsTile';
 import CommentThread from '@/components/vendor/CommentThread';
+import LiveRefresh from '@/components/vendor/LiveRefresh';
 import DocumentHub from '@/components/vendor/DocumentHub';
 import GuidesSpotlight from '@/components/vendor/GuidesSpotlight';
 import MarketNews from '@/components/vendor/MarketNews';
@@ -338,6 +339,7 @@ export default async function VendorDashboard({
 
           {/* Two-way Messages */}
           <CommentThread token={token} />
+          <LiveRefresh token={token} />
 
           {/* Local Market (just sold + just listed within 500m). Hits an
               external market lookup, so stream it — the rest of the page

@@ -25,6 +25,8 @@ export interface ParsedReport {
   saves: number;
   searchAppearances: number;
   address?: string;
+  /** Present only when the report text names a shares figure (U4). */
+  shares?: number;
 }
 
 export interface ParseFailure {
@@ -110,6 +112,7 @@ export function parseReportText(text: string): ParsedReport | ParseFailure {
   if (saves == null) missing.push('saves');
 
   const searchAppearances = extractNumber(text, ['Search appearances', 'Search results appearances']) ?? 0;
+  const shares = extractNumber(text, ['Shares', 'Social shares']);
 
   if (missing.length > 0) {
     return { missing, detectedSource };
@@ -122,6 +125,7 @@ export function parseReportText(text: string): ParsedReport | ParseFailure {
     enquiries: enquiries as number,
     saves: saves as number,
     searchAppearances,
+    ...(shares != null ? { shares } : {}),
     address: extractAddress(text),
   };
 }
