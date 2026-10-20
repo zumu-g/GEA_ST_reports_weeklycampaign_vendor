@@ -59,6 +59,8 @@ export interface PropertyData {
   calendarId: string;
   /** GEA CRM listing id, once matched by live-properties.ts (KTD2/R5). Empty until then. */
   crmListingId: string;
+  /** How buyers.ts projects interested buyers to the vendor (U2 KTD2). Defaults to 'first-name'. */
+  buyerDisplay: 'first-name' | 'anonymous';
   checklist: { task: string; status: ChecklistStatus; done: boolean }[];
   latestUpdate: string;
   analytics: AnalyticsRow[];
@@ -138,6 +140,7 @@ function parsePropertyDetails(content: string): Partial<PropertyData> {
     agent: get('Agent'),
     calendarId: get('Calendar ID'),
     crmListingId: get('CRM Listing ID'),
+    buyerDisplay: get('Buyer Display') === 'anonymous' ? 'anonymous' : 'first-name',
   };
 }
 
@@ -343,6 +346,7 @@ export async function getProperty(slug: string): Promise<PropertyData | null> {
       agent: details.agent || '',
       calendarId: details.calendarId || '',
       crmListingId: details.crmListingId || '',
+      buyerDisplay: details.buyerDisplay || 'first-name',
       checklist: parseChecklist(content),
       latestUpdate: parseLatestUpdate(content),
       analytics: parseAnalyticsTable(content),

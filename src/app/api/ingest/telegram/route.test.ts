@@ -7,7 +7,11 @@ const fetchArticleMeta = vi.fn();
 const appendActivity = vi.fn();
 const writeInspectionFile = vi.fn();
 const resolveProperty = vi.fn();
+const upsertBuyer = vi.fn();
 
+vi.mock('@/lib/buyers', () => ({
+  upsertBuyer: (...args: unknown[]) => upsertBuyer(...args),
+}));
 vi.mock('@/lib/weekly-drafts', () => ({
   broadcastArticleToAllDrafts: (...args: unknown[]) => broadcastArticleToAllDrafts(...args),
   getReportWeekEnding: (...args: unknown[]) => getReportWeekEnding(...args),
@@ -118,5 +122,33 @@ describe('POST /api/ingest/telegram — article broadcast', () => {
     const res = await POST(req({ message: 'Add this article\nhttps://example.com/a' }, { 'x-ingest-key': 'wrong' }));
     expect(res.status).toBe(401);
     expect(broadcastArticleToAllDrafts).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/ingest/telegram — buyer shorthand', () => {
+  it('matches the property and upserts the buyer', async () => {
+    process.env.INGEST_API_KEY = 'secret';
+    resolveProperty.mockReturnValue({ slug: '85-centenary', address: '85 Centenary Blvd' });
+    upsertBuyer.mockResolvedValue({ id: '1', firstName: 'Priya', position: 'finance-approved', interest: 'High' });
+
+    const res = await POST(req({ message: '85 Centenary | buyer: Priya, finance approved, high, loved the yard' }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json).toMatchObject({ success: true, kind: 'buyer', slug: '85-centenary' });
+    expect(upsertBuyer).toHaveBeenCalledWith('85-centenary', expect.objectContaining({
+      firstName: 'Priya',
+      position: 'finance-approved',
+      interest: 'High',
+      source: 'telegram',
+    }));
+  });
+
+  it('returns 404 when the property cannot be matched and does not upsert', async () => {
+    process.env.INGEST_API_KEY = 'secret';
+    resolveProperty.mockReturnValue(null);
+    const res = await POST(req({ message: 'Nowhere St | buyer: Priya' }));
+    expect(res.status).toBe(404);
+    expect(upsertBuyer).not.toHaveBeenCalled();
   });
 });

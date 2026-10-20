@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveProperty } from '@/lib/property-registry';
 import { writeInspectionFile, appendActivity } from '@/lib/markdown-loader';
 import { ingestGuard } from '@/lib/agent-auth';
-import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage } from '@/lib/message-parsers';
+import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage, parseBuyerShorthand } from '@/lib/message-parsers';
 import { fetchArticleMeta } from '@/lib/article-meta';
 import { broadcastArticleToAllDrafts, getReportWeekEnding } from '@/lib/weekly-drafts';
+import { upsertBuyer } from '@/lib/buyers';
 
 export async function POST(request: NextRequest) {
   const denied = ingestGuard(request);
@@ -51,6 +52,34 @@ export async function POST(request: NextRequest) {
         weekEnding,
         updated,
         skipped,
+      });
+    }
+
+    // Buyer shorthand path — checked before the generic note/inspection
+    // parsers since its "buyer:" prefix is specific and would otherwise be
+    // swallowed by parseTelegramMessage's pipe-delimited inspection form.
+    const buyerShorthand = parseBuyerShorthand(message);
+    if (buyerShorthand) {
+      const property = await resolveProperty(buyerShorthand.propertyText);
+      if (!property) {
+        return NextResponse.json(
+          { error: 'Could not match property', searched: buyerShorthand.propertyText },
+          { status: 404 }
+        );
+      }
+      const buyer = await upsertBuyer(property.slug, {
+        firstName: buyerShorthand.firstName,
+        position: buyerShorthand.position,
+        interest: buyerShorthand.interest,
+        feedbackNote: buyerShorthand.note || undefined,
+        source: 'telegram',
+      });
+      return NextResponse.json({
+        success: true,
+        kind: 'buyer',
+        property: property.address,
+        slug: property.slug,
+        buyer: { id: buyer.id, firstName: buyer.firstName, position: buyer.position, interest: buyer.interest },
       });
     }
 

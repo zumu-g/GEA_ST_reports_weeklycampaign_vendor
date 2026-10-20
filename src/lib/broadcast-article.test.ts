@@ -36,6 +36,7 @@ function property(slug: string): PropertyData {
     agent: 'Stuart Grant',
     calendarId: '',
     crmListingId: '',
+    buyerDisplay: 'first-name',
     checklist: [],
     latestUpdate: '',
     analytics: [],

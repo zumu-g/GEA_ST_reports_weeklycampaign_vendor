@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveProperty } from '@/lib/property-registry';
 import { writeInspectionFile, appendActivity } from '@/lib/markdown-loader';
-import { parseFreeformNote, parseTelegramMessage } from '@/lib/message-parsers';
+import { parseFreeformNote, parseTelegramMessage, parseBuyerShorthand } from '@/lib/message-parsers';
 import { verifyTwilioSignature, signedUrlForPath } from '@/lib/twilio-signature';
+import { upsertBuyer } from '@/lib/buyers';
 
 export const runtime = 'nodejs';
 
@@ -65,6 +66,20 @@ export async function POST(request: NextRequest) {
 
   const message = params.Body || '';
   if (!message) {
+    return emptyTwiml();
+  }
+
+  const buyerShorthand = parseBuyerShorthand(message);
+  if (buyerShorthand) {
+    const property = await resolveProperty(buyerShorthand.propertyText);
+    if (!property) return emptyTwiml();
+    await upsertBuyer(property.slug, {
+      firstName: buyerShorthand.firstName,
+      position: buyerShorthand.position,
+      interest: buyerShorthand.interest,
+      feedbackNote: buyerShorthand.note || undefined,
+      source: 'whatsapp',
+    });
     return emptyTwiml();
   }
 

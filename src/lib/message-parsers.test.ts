@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage } from './message-parsers';
+import { parseArticleBroadcast, parseFreeformNote, parseTelegramMessage, parseBuyerShorthand } from './message-parsers';
 
 describe('parseArticleBroadcast', () => {
   it('parses trigger phrase + URL + title/summary lines', () => {
@@ -110,5 +110,37 @@ describe('parseTelegramMessage', () => {
   it('parses dash format', () => {
     const result = parseTelegramMessage('Calibar - open - 5 groups');
     expect(result).toMatchObject({ propertyText: 'Calibar', type: 'Open Home', groups: 5 });
+  });
+});
+
+describe('parseBuyerShorthand', () => {
+  it('parses name, position, interest and a feedback note', () => {
+    const result = parseBuyerShorthand('85 Centenary | buyer: Priya, finance approved, high, loved the yard, thinks 700');
+    expect(result).toEqual({
+      propertyText: '85 Centenary',
+      firstName: 'Priya',
+      position: 'finance-approved',
+      interest: 'High',
+      note: 'finance approved, high, loved the yard, thinks 700',
+    });
+  });
+
+  it('defaults to position unknown and interest Medium with no keywords', () => {
+    const result = parseBuyerShorthand('85 Centenary | buyer: Sam');
+    expect(result).toMatchObject({ firstName: 'Sam', position: 'unknown', interest: 'Medium' });
+  });
+
+  it('detects low interest from "soft"', () => {
+    const result = parseBuyerShorthand('85 Centenary | buyer: Jordan, soft on price');
+    expect(result?.interest).toBe('Low');
+  });
+
+  it('returns null for a pipe message that is not a buyer: form', () => {
+    expect(parseBuyerShorthand('85 Centenary | open | 3 groups')).toBeNull();
+    expect(parseBuyerShorthand('85 Centenary | note: called the vendor')).toBeNull();
+  });
+
+  it('returns null for a message with no pipe at all', () => {
+    expect(parseBuyerShorthand('buyer: Priya, finance approved')).toBeNull();
   });
 });

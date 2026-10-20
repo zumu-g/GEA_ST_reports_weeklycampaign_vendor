@@ -63,6 +63,68 @@ export function parseFreeformNote(message: string): { propertyText: string; note
   return null;
 }
 
+type BuyerPositionText =
+  | 'finance-approved'
+  | 'cash'
+  | 'subject-to-sale'
+  | 'sold-own-home'
+  | 'investor'
+  | 'first-home'
+  | 'unknown';
+
+function detectBuyerPosition(text: string): BuyerPositionText {
+  const t = text.toLowerCase();
+  if (t.includes('finance')) return 'finance-approved';
+  if (t.includes('cash')) return 'cash';
+  if (t.includes('subject to sale') || t.includes('sts')) return 'subject-to-sale';
+  if (t.includes('sold own home') || t.includes('sold their home')) return 'sold-own-home';
+  if (t.includes('investor')) return 'investor';
+  if (t.includes('first home') || t.includes('fhb')) return 'first-home';
+  return 'unknown';
+}
+
+// Parses buyer shorthand: "85 Centenary | buyer: Priya, finance approved,
+// high, loved the yard, thinks 700" — first name, optional free-text position
+// and interest level, then a feedback note. Position and interest are
+// detected from keywords (mirrors the inspection parser's "keen"/"soft"
+// detection below) so the agent can type naturally rather than matching an
+// exact enum string.
+export function parseBuyerShorthand(message: string): {
+  propertyText: string;
+  firstName: string;
+  position: BuyerPositionText;
+  interest: 'High' | 'Medium' | 'Low';
+  note: string;
+} | null {
+  if (!message.includes('|')) return null;
+  const parts = message.split('|').map(p => p.trim());
+  if (parts.length < 2) return null;
+  const buyerMatch = parts[1].match(/^buyer\s*:\s*(.+)$/i);
+  if (!buyerMatch) return null;
+
+  const propertyText = parts[0];
+  const fields = buyerMatch[1].split(',').map(f => f.trim()).filter(Boolean);
+  const firstName = fields[0] || '';
+  if (!firstName) return null;
+
+  const rest = fields.slice(1).join(', ');
+  const restLower = rest.toLowerCase();
+  const interest: 'High' | 'Medium' | 'Low' =
+    restLower.includes('high') || restLower.includes('keen') || restLower.includes('strong')
+      ? 'High'
+      : restLower.includes('low') || restLower.includes('soft')
+        ? 'Low'
+        : 'Medium';
+
+  return {
+    propertyText,
+    firstName,
+    position: detectBuyerPosition(rest),
+    interest,
+    note: fields.slice(1).join(', '),
+  };
+}
+
 // Parses inspection shorthand:
 // "85 Centenary | open | 3 groups | 1 interested | felt overpriced"
 // "14 Hartsmere: private, John Smith, very keen, wants 2nd look"

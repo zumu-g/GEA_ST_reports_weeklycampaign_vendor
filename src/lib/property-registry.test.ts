@@ -11,7 +11,7 @@ const getLivePropertyDataMock = vi.mocked(getLivePropertyData);
 function property(slug: string, address: string, owner = 'Owner'): PropertyData {
   return {
     slug, address, owner, contact: '', listed: '', priceGuide: '', campaignType: '',
-    agent: '', calendarId: '', crmListingId: '', checklist: [], latestUpdate: '',
+    agent: '', calendarId: '', crmListingId: '', buyerDisplay: 'first-name', checklist: [], latestUpdate: '',
     analytics: [], inspections: [], communications: [], news: [], benchmarks: [],
   };
 }

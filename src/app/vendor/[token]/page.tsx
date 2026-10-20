@@ -21,6 +21,8 @@ import MarketNews from '@/components/vendor/MarketNews';
 import LocalMarket from '@/components/vendor/LocalMarket';
 import DownloadButton from '@/components/vendor/DownloadButton';
 import InspectionHistory from '@/components/InspectionHistory';
+import InterestedBuyers from '@/components/vendor/InterestedBuyers';
+import { projectBuyersForVendor } from '@/lib/buyers';
 import SectionHeading from '@/components/SectionHeading';
 import DailyQuote from '@/components/vendor/DailyQuote';
 import TrendBadge from '@/components/vendor/TrendBadge';
@@ -79,6 +81,8 @@ export default async function VendorDashboard({
   if (isHiddenFromPortal(slug, live)) {
     return <CampaignInactive address={property.address} agent={property.agent} />;
   }
+
+  const buyers = await projectBuyersForVendor(slug);
 
   const totals = sumAnalytics(property.analytics);
   const latestAnalytics = property.analytics[0] ?? null;
@@ -205,6 +209,9 @@ export default async function VendorDashboard({
         {property.inspections.length > 0 && (
           <InspectionHistory inspections={property.inspections} />
         )}
+
+        {/* ── Interested Buyers (U2) ──────────────────────── */}
+        <InterestedBuyers buyers={buyers} />
 
         {property.inspections.length === 0 && (
           <section className="mb-10">
