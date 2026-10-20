@@ -19,6 +19,29 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
+// Push notifications (U7). Payload is {title, body, url} — see
+// src/lib/dispatch-notifications.ts sendPush. No buyer contact detail is
+// ever placed in a notification body.
+self.addEventListener('push', event => {
+  let data = { title: 'Update on your campaign', body: '', url: '/' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {}
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      data: { url: data.url },
+      icon: '/icons/icon-192.png',
+    })
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(self.clients.openWindow(url));
+});
+
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);

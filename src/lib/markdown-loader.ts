@@ -1442,7 +1442,7 @@ export async function getUnifiedTimeline(slug: string, opts: { limit?: number } 
 
 export interface OutboundNotification {
   id: string;
-  channel: 'email' | 'sms' | 'both';
+  channel: 'email' | 'sms' | 'both' | 'push';
   to: { email?: string; phone?: string };
   vendor?: string;
   slug?: string;
@@ -1450,6 +1450,9 @@ export interface OutboundNotification {
   body: string;
   portalUrl?: string;
   created_at: string;
+  /** Preference-matching type (U7) — "Offer Received" etc. Absent items
+   *  (legacy/Python-enqueued) are never deferred by preferences/quiet hours. */
+  notificationType?: string;
 }
 
 /**
@@ -1470,6 +1473,7 @@ export async function enqueueNotification(
     body: n.body,
     portalUrl: n.portalUrl,
     created_at: n.created_at || new Date().toISOString(),
+    notificationType: n.notificationType,
   };
   const dir = path.join(propertiesDir(), '_outbound');
   await fs.mkdir(dir, { recursive: true });

@@ -88,4 +88,37 @@ describe('dispatchNotifications', () => {
     const result = await dispatchNotifications();
     expect(result).toEqual({ total: 0, sent: 0, failed: [] });
   });
+
+  it('defers a non-offer item during quiet hours instead of sending or failing it', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-21T22:30:00+11:00'));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => '{}' }));
+    const slugDir = path.join(tmp, 'test-slug');
+    await fs.mkdir(slugDir, { recursive: true });
+    await writeQueueItem('item-1', { slug: 'test-slug', notificationType: 'Analytics Update' });
+
+    const result = await dispatchNotifications();
+    expect(result).toEqual({ total: 1, sent: 0, failed: ['item-1.json'] });
+    // Still in the queue, not moved to sent/ or failed/, for the next run to retry.
+    await expect(fs.readFile(path.join(outboundDir, 'item-1.json'), 'utf-8')).resolves.toBeTruthy();
+    vi.useRealTimers();
+  });
+
+  it('sends an offer item during quiet hours (offers bypass)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-21T22:30:00+11:00'));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => '{}' }));
+    await writeQueueItem('item-1', { slug: 'test-slug', notificationType: 'Offer Received' });
+
+    const result = await dispatchNotifications();
+    expect(result).toEqual({ total: 1, sent: 1, failed: [] });
+    vi.useRealTimers();
+  });
+
+  it('skips the push branch with no error when VAPID keys are unset, archiving the item as sent', async () => {
+    delete process.env.VAPID_PUBLIC_KEY;
+    await writeQueueItem('item-1', { channel: 'push', slug: 'test-slug' });
+    const result = await dispatchNotifications();
+    expect(result).toEqual({ total: 1, sent: 1, failed: [] });
+  });
 });

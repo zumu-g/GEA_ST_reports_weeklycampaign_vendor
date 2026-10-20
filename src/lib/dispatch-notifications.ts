@@ -1,6 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import type { OutboundNotification } from './markdown-loader';
+import { readPushSubscriptions, removePushSubscription } from './push';
+import { getPreferences, isAllowedNow, type NotificationType } from './preferences';
 
 /**
  * TypeScript port of GEA_ST_vendor_portal/scripts/dispatch_notifications.py,
@@ -57,6 +59,39 @@ async function sendEmail(item: QueueItem): Promise<void> {
   if (!res.ok) throw new Error(`Resend HTTP ${res.status}: ${await res.text()}`);
 }
 
+async function sendPush(item: QueueItem): Promise<void> {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const subject = process.env.VAPID_SUBJECT;
+  if (!publicKey || !privateKey || !subject) {
+    // No key configured — skip silently (other channels on the same item
+    // still send); this is an expected state until the keys are provisioned.
+    return;
+  }
+  if (!item.slug) throw new Error('no slug on push item');
+
+  const webpush = await import('web-push');
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+
+  const subs = await readPushSubscriptions(item.slug);
+  const payload = JSON.stringify({ title: item.subject || 'Update on your campaign', body: item.body, url: item.portalUrl });
+
+  await Promise.all(
+    subs.map(async sub => {
+      try {
+        await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload);
+      } catch (err) {
+        const statusCode = (err as { statusCode?: number }).statusCode;
+        if (statusCode === 404 || statusCode === 410) {
+          await removePushSubscription(item.slug as string, sub.endpoint);
+        } else {
+          throw err;
+        }
+      }
+    }),
+  );
+}
+
 async function sendSms(item: QueueItem): Promise<void> {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
@@ -94,10 +129,26 @@ async function processItem(dir: string, sentDir: string, failedDir: string, file
     return false;
   }
 
+  // Preference and quiet-hours gate applies to every channel (U7). Items
+  // without a slug or notificationType (legacy/Python-enqueued) skip the
+  // gate entirely rather than being silently dropped.
+  if (item.slug && item.notificationType) {
+    const prefs = await getPreferences(item.slug);
+    const channelsToCheck: Array<'email' | 'sms' | 'push'> =
+      item.channel === 'both' ? ['email', 'sms'] : [item.channel as 'email' | 'sms' | 'push'];
+    const allowed = channelsToCheck.some(c => isAllowedNow(prefs, c, item.notificationType as NotificationType));
+    if (!allowed) {
+      // Deferred, not failed — leave the file in the queue for the next
+      // dispatcher run to re-check once quiet hours end.
+      return false;
+    }
+  }
+
   const channel = item.channel || 'email';
   try {
     if (channel === 'email' || channel === 'both') await sendEmail(item);
     if (channel === 'sms' || channel === 'both') await sendSms(item);
+    if (channel === 'push') await sendPush(item);
   } catch (error) {
     const attempts = (item._attempts || 0) + 1;
     item._attempts = attempts;
