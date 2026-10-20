@@ -95,19 +95,32 @@ export default async function UpcomingOpens({ slug }: { slug: string }) {
         </div>
 
         <ul className="divide-y divide-border border-t border-border">
-          {upcoming.map(o => (
-            <li key={o.id} className="py-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-body text-sm text-foreground">
-                  {fmtDate(o.start)} · {fmtTime(o.start)}-{fmtTime(o.end)}
-                </p>
-                {o.note && (
-                  <p className="font-body text-xs text-muted truncate">{o.note}</p>
-                )}
-              </div>
-              <IcsDownload open={o} />
-            </li>
-          ))}
+          {upcoming.map(o => {
+            const groupsSoFar = o.attendance?.checkins.length ?? 0;
+            const inProgress = o.attendance?.status === 'open';
+            const closed = o.attendance?.status === 'closed';
+            return (
+              <li key={o.id} className="py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-body text-sm text-foreground">
+                    {fmtDate(o.start)} · {fmtTime(o.start)}-{fmtTime(o.end)}
+                  </p>
+                  {o.note && (
+                    <p className="font-body text-xs text-muted truncate">{o.note}</p>
+                  )}
+                  {inProgress && (
+                    <p className="font-mono text-xs text-accent mt-1">
+                      {groupsSoFar} group{groupsSoFar === 1 ? '' : 's'} through so far · live
+                    </p>
+                  )}
+                  {closed && groupsSoFar > 0 && (
+                    <p className="font-mono text-xs text-muted mt-1">{groupsSoFar} group{groupsSoFar === 1 ? '' : 's'} attended</p>
+                  )}
+                </div>
+                <IcsDownload open={o} />
+              </li>
+            );
+          })}
         </ul>
       </div>
     </section>

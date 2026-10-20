@@ -927,20 +927,50 @@ export async function getLiveStats(slug: string): Promise<LiveStats | null> {
 
 // --- Opens sidecar ---
 
+export interface OpenCheckin {
+  ts: string;
+  buyerId?: string;
+}
+
+export interface OpenAttendance {
+  checkins: OpenCheckin[];
+  status: 'scheduled' | 'open' | 'closed';
+  closedAt?: string;
+}
+
 export interface OpenEntry {
   id: string;
   start: string; // ISO
   end: string;   // ISO
   source: 'clickup' | 'manual';
   note?: string;
+  attendance?: OpenAttendance;
+}
+
+// An open two hours past its scheduled end with no explicit close is
+// reported as closed to every reader, vendor included — but this never
+// writes. Only an agent-route call (closeOpen) persists that close, so a
+// vendor's polling GET can never race the agent's own check-in writes on
+// opens.json (U3).
+const STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+
+export function resolveOpenStatus(open: OpenEntry): OpenEntry {
+  const attendance = open.attendance;
+  if (!attendance || attendance.status === 'closed') return open;
+  const staleCutoff = new Date(open.end).getTime() + STALE_AFTER_MS;
+  if (Date.now() > staleCutoff) {
+    return { ...open, attendance: { ...attendance, status: 'closed' } };
+  }
+  return open;
 }
 
 export async function readOpens(slug: string): Promise<OpenEntry[]> {
-  return readJsonSidecar<OpenEntry>(slug, 'opens.json');
+  const items = await readJsonSidecar<OpenEntry>(slug, 'opens.json');
+  return items.map(resolveOpenStatus);
 }
 
 export async function upsertOpen(slug: string, entry: OpenEntry): Promise<void> {
-  const items = await readOpens(slug);
+  const items = await readJsonSidecar<OpenEntry>(slug, 'opens.json');
   const idx = items.findIndex(o => o.id === entry.id);
   if (idx >= 0) items[idx] = entry;
   else items.push(entry);
@@ -948,11 +978,86 @@ export async function upsertOpen(slug: string, entry: OpenEntry): Promise<void> 
 }
 
 export async function removeOpen(slug: string, id: string): Promise<void> {
-  const items = await readOpens(slug);
+  const items = await readJsonSidecar<OpenEntry>(slug, 'opens.json');
   const filtered = items.filter(o => o.id !== id);
   if (filtered.length !== items.length) {
     await writeJsonSidecar(slug, 'opens.json', filtered);
   }
+}
+
+function interestLevelFor(interested: number): string {
+  return interested > 2 ? 'High' : interested > 0 ? 'Medium' : 'Low';
+}
+
+// Adds one group check-in (and optionally links it to a buyer logged via
+// buyers.ts), auto-starting the open's attendance on the first check-in.
+export async function checkinGroup(slug: string, openId: string, buyerId?: string): Promise<OpenEntry> {
+  const items = await readJsonSidecar<OpenEntry>(slug, 'opens.json');
+  const idx = items.findIndex(o => o.id === openId);
+  if (idx === -1) throw new Error('Open not found');
+  const open = items[idx];
+  if (open.attendance?.status === 'closed') throw new Error('Open already closed');
+
+  const attendance: OpenAttendance = open.attendance ?? { checkins: [], status: 'open' };
+  attendance.status = 'open';
+  attendance.checkins.push({ ts: new Date().toISOString(), buyerId });
+  items[idx] = { ...open, attendance };
+  await writeJsonSidecar(slug, 'opens.json', items);
+  return items[idx];
+}
+
+// Removes the most recent check-in (an accidental extra tap).
+export async function undoLastCheckin(slug: string, openId: string): Promise<OpenEntry> {
+  const items = await readJsonSidecar<OpenEntry>(slug, 'opens.json');
+  const idx = items.findIndex(o => o.id === openId);
+  if (idx === -1) throw new Error('Open not found');
+  const open = items[idx];
+  if (!open.attendance?.checkins.length) return open;
+  const attendance: OpenAttendance = { ...open.attendance, checkins: open.attendance.checkins.slice(0, -1) };
+  items[idx] = { ...open, attendance };
+  await writeJsonSidecar(slug, 'opens.json', items);
+  return items[idx];
+}
+
+// Closes the open, writes the inspection file + Inspection History row from
+// the aggregated check-in count, and appends an activity event (U3).
+export async function closeOpen(slug: string, openId: string): Promise<OpenEntry> {
+  const items = await readJsonSidecar<OpenEntry>(slug, 'opens.json');
+  const idx = items.findIndex(o => o.id === openId);
+  if (idx === -1) throw new Error('Open not found');
+  const open = items[idx];
+  if (open.attendance?.status === 'closed') throw new Error('Open already closed');
+
+  const checkins = open.attendance?.checkins ?? [];
+  const groups = checkins.length;
+  const interested = new Set(checkins.filter(c => c.buyerId).map(c => c.buyerId)).size;
+  const interestLevel = interestLevelFor(interested);
+
+  const attendance: OpenAttendance = {
+    checkins,
+    status: 'closed',
+    closedAt: new Date().toISOString(),
+  };
+  items[idx] = { ...open, attendance };
+  await writeJsonSidecar(slug, 'opens.json', items);
+
+  const date = open.start.split('T')[0];
+  await writeInspectionFile(slug, {
+    date,
+    type: 'Open Home',
+    groups,
+    interested,
+    interestLevel,
+    notes: open.note || '',
+  });
+
+  await appendActivity(slug, {
+    source: 'inspection',
+    actor: 'Agent',
+    summary: `Open home closed: ${groups} group${groups === 1 ? '' : 's'}, ${interestLevel.toLowerCase()} interest`,
+  });
+
+  return items[idx];
 }
 
 // --- Checklist writer ---
