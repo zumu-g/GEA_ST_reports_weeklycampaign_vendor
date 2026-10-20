@@ -19,32 +19,55 @@ export interface Benchmark {
   source: string;
 }
 
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
 /**
- * Fetch benchmarks for a property from the everypropertyai MCP.
- * Returns a typed result; never throws. A failure returns an empty array.
- * Server-only. Called at draft-generation time and written to markdown.
+ * Derives benchmarks from the latest competitor snapshot (U5/KTD6) rather
+ * than a direct MCP call: the only confirmed everypropertyai HTTP endpoint
+ * is /api/vendor-report, which competitors.ts already queries and snapshots.
+ * Returns [] when no snapshot exists yet (R5: the UI then shows its empty
+ * state instead of a fabricated zero).
  */
 export async function fetchBenchmarks(
-  address: string,
-  suburb: string,
-  priceGuide: string | null
+  listingValue: number,
+  snapshot: { listings: { askingLow: number | null; askingHigh: number | null }[] } | null
 ): Promise<Benchmark[]> {
-  // ponytail: never-throw client pattern matching crm-client.ts.
-  // If MCP is unconfigured or unreachable, return [].
-  try {
-    const now = new Date().toISOString();
+  if (!snapshot || snapshot.listings.length === 0) return [];
 
-    // For now, this is a placeholder. The real implementation will call
-    // the everypropertyai MCP (vendor_report, on_market_listings, comparable_sales).
-    // U3 integration with MCP is pending MCP availability confirmation.
-    // Field names and groupings should be reconciled against a real Ignite export in U2.
+  const now = new Date().toISOString();
+  const askings = snapshot.listings
+    .map(l => l.askingHigh ?? l.askingLow)
+    .filter((v): v is number => v != null);
 
-    // Placeholder: return empty array (no MCP yet)
-    return [];
-  } catch {
-    // MCP failure, network error, or MCP unconfigured — degrade gracefully
-    return [];
+  const benchmarks: Benchmark[] = [
+    {
+      metric: 'Competing Listings',
+      listingValue: snapshot.listings.length,
+      suburbMedian: null,
+      bracketMedian: null,
+      capturedAt: now,
+      source: 'everypropertyai',
+    },
+  ];
+
+  const medianAsking = median(askings);
+  if (medianAsking !== null) {
+    benchmarks.push({
+      metric: 'Asking Price',
+      listingValue,
+      suburbMedian: null,
+      bracketMedian: Math.round(medianAsking),
+      capturedAt: now,
+      source: 'everypropertyai',
+    });
   }
+
+  return benchmarks;
 }
 
 /**

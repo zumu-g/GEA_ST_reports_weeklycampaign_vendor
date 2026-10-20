@@ -1,7 +1,33 @@
 import { describe, it, expect } from 'vitest';
-import { formatBenchmarksTable, parseBenchmarksTable, type Benchmark } from '../benchmarks';
+import { formatBenchmarksTable, parseBenchmarksTable, fetchBenchmarks, type Benchmark } from '../benchmarks';
 
 describe('benchmarks', () => {
+  describe('fetchBenchmarks', () => {
+    it('returns [] when no snapshot exists yet', async () => {
+      expect(await fetchBenchmarks(700_000, null)).toEqual([]);
+      expect(await fetchBenchmarks(700_000, { listings: [] })).toEqual([]);
+    });
+
+    it('returns a competing-listings count and a median asking-price benchmark', async () => {
+      const benchmarks = await fetchBenchmarks(700_000, {
+        listings: [
+          { askingLow: 650_000, askingHigh: 680_000 },
+          { askingLow: 700_000, askingHigh: 720_000 },
+          { askingLow: 690_000, askingHigh: 710_000 },
+        ],
+      });
+      expect(benchmarks).toHaveLength(2);
+      expect(benchmarks[0]).toMatchObject({ metric: 'Competing Listings', listingValue: 3 });
+      expect(benchmarks[1]).toMatchObject({ metric: 'Asking Price', listingValue: 700_000, bracketMedian: 710_000 });
+    });
+
+    it('omits the Asking Price row when no listing has a numeric price', async () => {
+      const benchmarks = await fetchBenchmarks(700_000, { listings: [{ askingLow: null, askingHigh: null }] });
+      expect(benchmarks).toHaveLength(1);
+      expect(benchmarks[0].metric).toBe('Competing Listings');
+    });
+  });
+
   describe('formatBenchmarksTable', () => {
     it('returns empty string for empty benchmarks array', () => {
       expect(formatBenchmarksTable([])).toBe('');

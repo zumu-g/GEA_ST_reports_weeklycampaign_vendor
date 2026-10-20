@@ -11,6 +11,7 @@ vi.mock('@/lib/everypropertyai', () => ({
 
 import { POST } from './route';
 import { readActivity } from '@/lib/markdown-loader';
+import { readCompetitorSnapshots } from '@/lib/competitors';
 
 const SLUG = 'enrich-test-slug';
 const AGENT_KEY = 'test-agent-key';
@@ -75,6 +76,11 @@ describe('POST /api/agent/enrich/[slug]', () => {
     const activity = await readActivity(SLUG);
     expect(activity).toHaveLength(1);
     expect(activity[0].source).toBe('enrichment');
+
+    const snapshots = await readCompetitorSnapshots(SLUG);
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0].listings.map(l => l.address)).toEqual(['5 Real St']);
+    expect(body.competitorEvents).toEqual([{ type: 'new', address: '5 Real St' }]);
   });
 
   it('writes an honest empty-state when the backend returns no comps', async () => {

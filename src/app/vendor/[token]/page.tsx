@@ -30,6 +30,7 @@ import WeeklyTrend from '@/components/vendor/WeeklyTrend';
 import ActivityFunnel from '@/components/vendor/ActivityFunnel';
 import BenchmarkComparison from '@/components/vendor/BenchmarkComparison';
 import CompetitionContext from '@/components/vendor/CompetitionContext';
+import { readCompetitorSnapshots } from '@/lib/competitors';
 import CampaignSpend from '@/components/vendor/CampaignSpend';
 import { getDailyQuote } from '@/lib/quotes';
 
@@ -83,6 +84,8 @@ export default async function VendorDashboard({
   }
 
   const buyers = await projectBuyersForVendor(slug);
+  const competitorSnapshots = await readCompetitorSnapshots(slug);
+  const latestCompetitors = competitorSnapshots[competitorSnapshots.length - 1]?.listings ?? [];
 
   const totals = sumAnalytics(property.analytics);
   const latestAnalytics = property.analytics[0] ?? null;
@@ -307,7 +310,7 @@ export default async function VendorDashboard({
         {/* ── Extended Metrics (U4) ────────────────────────── */}
         <ActivityFunnel analytics={property.analytics} />
         <BenchmarkComparison benchmarks={property.benchmarks} />
-        <CompetitionContext analytics={property.analytics} />
+        <CompetitionContext analytics={property.analytics} competitors={latestCompetitors} />
         <CampaignSpend analytics={property.analytics} />
 
         {/* ── What's Next (live; web only) ─────────────────── */}

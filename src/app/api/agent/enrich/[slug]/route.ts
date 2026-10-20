@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProperty, updatePropertySection, appendActivity } from '@/lib/markdown-loader';
+import { getProperty, updatePropertySection, updateBenchmarks, appendActivity } from '@/lib/markdown-loader';
 import { authorised } from '@/lib/agent-auth';
 import { getVendorReportComps, type SoldComp, type ListingComp } from '@/lib/everypropertyai';
+import { buildCompetitorSnapshot, appendCompetitorSnapshot, parsePriceGuideMidpoint } from '@/lib/competitors';
+import { fetchBenchmarks } from '@/lib/benchmarks';
 
 // Agent-gated: pulls comparable sales / nearby listings from everypropertyai
 // and rewrites the "Just Listed Nearby" / "Just Sold Nearby" tables. Property
@@ -64,10 +66,20 @@ export async function POST(
   await updatePropertySection(slug, 'Just Listed Nearby', LISTED_HEADER, comps.listings.map(listingRow));
   await updatePropertySection(slug, 'Just Sold Nearby', SOLD_HEADER, comps.solds.map(soldRow));
 
+  // Competing-listings snapshot + diff (U5/KTD6), then real benchmarks
+  // derived from that snapshot rather than a hollow placeholder (R4, R5).
+  const snapshot = buildCompetitorSnapshot(comps.listings, property.priceGuide || null);
+  const competitorEvents = await appendCompetitorSnapshot(slug, snapshot);
+
+  const listingMidpoint = parsePriceGuideMidpoint(property.priceGuide || '') ?? 0;
+  const benchmarks = await fetchBenchmarks(listingMidpoint, snapshot);
+  await updateBenchmarks(slug, benchmarks);
+
   await appendActivity(slug, {
     source: 'enrichment',
     actor: 'Agent',
-    summary: `Refreshed nearby listings/sales (${comps.listings.length} listed, ${comps.solds.length} sold)`,
+    summary: `Refreshed nearby listings/sales (${comps.listings.length} listed, ${comps.solds.length} sold)` +
+      (competitorEvents.length ? `; ${competitorEvents.length} competing-listing change${competitorEvents.length === 1 ? '' : 's'}` : ''),
   });
 
   return NextResponse.json({
@@ -75,5 +87,6 @@ export async function POST(
     slug,
     listingsFound: comps.listings.length,
     soldsFound: comps.solds.length,
+    competitorEvents,
   });
 }
