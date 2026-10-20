@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { parseWeeklyDraftId, approveWeeklyDraft } from '@/lib/weekly-drafts';
 import { getTokenForSlug } from '@/lib/vendor-tokens';
 import { recordApprovedReport } from '@/lib/sent-report-sync';
-import { appendMarketNews, writeAnalyticsFile } from '@/lib/markdown-loader';
+import { appendMarketNews, writeAnalyticsFile, writeLatestUpdate, updatePropertySection, appendActivity, enqueueNotification, getProperty } from '@/lib/markdown-loader';
 import type { WeeklyDraft } from '@/lib/types';
 
 // Sync the approved week's portal stats into the property's analytics markdown
@@ -61,6 +61,38 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   // Sync the week's stats into analytics markdown so the portal renders them.
   await syncDraftAnalytics(draft);
+
+  // Publish the agent-drafted/edited narrative as the vendor's "From Your
+  // Agent" update (U8/R9) — only on this explicit approve action, never as
+  // a side effect of drafting.
+  if (draft.agentCommentary) {
+    await writeLatestUpdate(draft.propertySlug, draft.agentCommentary);
+    const property = await getProperty(draft.propertySlug);
+    const existingComms = property?.communications ?? [];
+    await updatePropertySection(
+      draft.propertySlug,
+      'Communications Log',
+      '| Date | Type | Summary |',
+      [...existingComms.map(c => [c.date, c.type, c.summary]), [draft.weekEnding, 'Weekly Update', draft.agentCommentary.slice(0, 140)]],
+    );
+    await appendActivity(draft.propertySlug, {
+      source: 'comment',
+      actor: 'Agent',
+      summary: `Weekly update published: ${draft.agentCommentary.slice(0, 100)}`,
+    });
+    const token = getTokenForSlug(draft.propertySlug);
+    // Push-only: the push dispatcher resolves subscriptions from the slug
+    // alone (push.json), unlike email/SMS which need a `to` address.
+    await enqueueNotification({
+      channel: 'push',
+      to: {},
+      slug: draft.propertySlug,
+      subject: 'Your weekly update is ready',
+      body: draft.agentCommentary.slice(0, 200),
+      portalUrl: token ? `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/vendor/${token}` : undefined,
+      notificationType: 'Weekly Report',
+    });
+  }
 
   // Record an `approved` sent-report in the CRM — best-effort, never blocks
   // approval (KTD4). Listing resolved by address CRM-side.

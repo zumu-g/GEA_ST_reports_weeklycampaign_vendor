@@ -700,6 +700,33 @@ function escapeTableCell(value: string): string {
  * rather than silently no-op'ing (the failure mode appendToPropertyTable has
  * for a missing header).
  */
+// Replaces the free-text ## Latest Update block (the vendor page's "From
+// Your Agent" quote) — distinct from updatePropertySection below, which only
+// handles table sections. Appends the heading if missing (U8).
+export async function writeLatestUpdate(slug: string, text: string): Promise<void> {
+  assertSafeSlug(slug);
+  const propertyPath = path.join(propertiesDir(), slug, 'PROPERTY.md');
+  let content: string;
+  try {
+    content = await fs.readFile(propertyPath, 'utf-8');
+  } catch {
+    return;
+  }
+
+  const heading = '## Latest Update';
+  const headingIdx = content.indexOf(heading);
+  if (headingIdx === -1) {
+    await fs.writeFile(propertyPath, content.trimEnd() + `\n\n${heading}\n${text}\n`, 'utf-8');
+    return;
+  }
+
+  const afterHeading = content.indexOf('\n', headingIdx) + 1;
+  const nextHeadingIdx = content.indexOf('\n## ', afterHeading);
+  const sectionEnd = nextHeadingIdx === -1 ? content.length : nextHeadingIdx;
+  content = content.substring(0, afterHeading) + text + '\n' + content.substring(sectionEnd);
+  await fs.writeFile(propertyPath, content, 'utf-8');
+}
+
 export async function updatePropertySection(
   slug: string,
   heading: string,

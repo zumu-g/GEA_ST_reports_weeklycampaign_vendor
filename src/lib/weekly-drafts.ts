@@ -6,6 +6,7 @@ import { getLivePropertyData } from '@/lib/live-properties';
 import { propertyToVendorReport } from '@/lib/data-adapter';
 import { resolveListing, getReportListing } from '@/lib/crm-client';
 import { applyCrmToDraft } from '@/lib/crm-draft-mapper';
+import { buildWeekSummary, draftNarrative } from '@/lib/weekly-narrative';
 
 // Read per-call (not at module load) so PROPERTIES_DIR overrides take effect —
 // matches markdown-loader.ts / storage.ts read timing.
@@ -98,7 +99,22 @@ export async function generateWeeklyDraftForProperty(
     agentEdited: [],
   };
 
-  return enrichDraftFromCrm(base);
+  const enriched = await enrichDraftFromCrm(base);
+  return attachDraftNarrative(enriched);
+}
+
+// Fills agentCommentary with an AI-drafted narrative (U8). Best-effort: a
+// model/key failure leaves agentCommentary blank rather than blocking draft
+// generation — the agent can still write it by hand in the admin panel.
+async function attachDraftNarrative(draft: WeeklyDraft): Promise<WeeklyDraft> {
+  try {
+    const property = await getProperty(draft.propertySlug);
+    const summary = await buildWeekSummary(draft);
+    const narrative = await draftNarrative(summary, property?.latestUpdate || '');
+    return { ...draft, agentCommentary: narrative };
+  } catch {
+    return draft;
+  }
 }
 
 /**
