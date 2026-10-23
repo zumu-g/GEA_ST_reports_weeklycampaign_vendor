@@ -36,6 +36,9 @@ afterEach(async () => {
 
 describe('checkinGroup / undoLastCheckin', () => {
   it('adds and undoes check-ins, tracking the group count', async () => {
+    // Pin the clock inside the open's window so readOpens does not auto-close it
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-21T13:10:00+11:00'));
     await checkinGroup(SLUG, 'open-1');
     await checkinGroup(SLUG, 'open-1');
     await checkinGroup(SLUG, 'open-1');
