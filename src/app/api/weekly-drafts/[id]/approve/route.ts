@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseWeeklyDraftId, approveWeeklyDraft } from '@/lib/weekly-drafts';
-import { getTokenForSlug } from '@/lib/vendor-tokens';
+import { getTokenForSlug, getTokenMeta } from '@/lib/vendor-tokens';
 import { recordApprovedReport } from '@/lib/sent-report-sync';
 import { appendMarketNews, writeAnalyticsFile, writeLatestUpdate, updatePropertySection, appendActivity, enqueueNotification, getProperty } from '@/lib/markdown-loader';
 import type { WeeklyDraft } from '@/lib/types';
@@ -92,6 +92,24 @@ export async function POST(_req: NextRequest, { params }: Params) {
       portalUrl: token ? `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/vendor/${token}` : undefined,
       notificationType: 'Weekly Report',
     });
+
+    // Email the vendor their weekly report: recap + combined REA/Domain stats
+    // + portal link. Queued (not sent inline) so the dispatcher retries and
+    // honours the vendor's preferences/quiet hours.
+    const ownerEmail = token ? getTokenMeta(token).ownerEmail : undefined;
+    if (ownerEmail && token) {
+      const views = draft.reaViews + draft.domainViews;
+      const enquiries = draft.reaEnquiries + draft.domainEnquiries;
+      await enqueueNotification({
+        channel: 'email',
+        to: { email: ownerEmail },
+        slug: draft.propertySlug,
+        subject: `Your weekly campaign report — ${draft.propertyAddress}`,
+        body: `Week ending ${draft.weekEnding}: ${views} views, ${enquiries} enquiries across realestate.com.au and Domain.\n\n${draft.agentCommentary}`,
+        portalUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/vendor/${token}`,
+        notificationType: 'Weekly Report',
+      });
+    }
   }
 
   // Record an `approved` sent-report in the CRM — best-effort, never blocks
