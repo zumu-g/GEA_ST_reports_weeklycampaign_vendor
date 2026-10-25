@@ -85,3 +85,20 @@ describe('generateToken', () => {
     expect(generateToken()).not.toBe(t);
   });
 });
+
+describe('VENDOR_TOKENS_FILE override', () => {
+  it('reads the store from the path in VENDOR_TOKENS_FILE', async () => {
+    const fs = await import('fs');
+    const os = await import('os');
+    const path = await import('path');
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'gea-tokens-')), 'tokens.json');
+    fs.writeFileSync(file, JSON.stringify({ tokens: { abc: 'test-slug' }, meta: {} }));
+    process.env.VENDOR_TOKENS_FILE = file;
+    try {
+      expect(resolveVendorToken('abc')?.slug).toBe('test-slug');
+      expect(resolveVendorToken('k7mP2xQn9rLs')).toBeNull();
+    } finally {
+      delete process.env.VENDOR_TOKENS_FILE;
+    }
+  });
+});

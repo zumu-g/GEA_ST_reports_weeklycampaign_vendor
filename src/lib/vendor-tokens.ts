@@ -2,7 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-const TOKENS_FILE = path.join(process.cwd(), 'src/lib/vendor-tokens.json');
+// Gitignored, so on Railway it must live on the volume: set VENDOR_TOKENS_FILE.
+// Resolved per call so the override works in tests.
+function tokensFile(): string {
+  return process.env.VENDOR_TOKENS_FILE || path.join(process.cwd(), 'src/lib/vendor-tokens.json');
+}
 
 export interface TokenMeta {
   ownerName?: string;
@@ -16,7 +20,7 @@ interface TokenStoreFile {
 
 function readStore(): TokenStoreFile {
   try {
-    const raw = JSON.parse(fs.readFileSync(TOKENS_FILE, 'utf-8'));
+    const raw = JSON.parse(fs.readFileSync(tokensFile(), 'utf-8'));
     // Migrate flat format (legacy: { token: slug }) to nested format
     if (!raw.tokens) {
       return { tokens: raw as Record<string, string>, meta: {} };
@@ -28,7 +32,7 @@ function readStore(): TokenStoreFile {
 }
 
 function writeStore(store: TokenStoreFile): void {
-  fs.writeFileSync(TOKENS_FILE, JSON.stringify(store, null, 2) + '\n', 'utf-8');
+  fs.writeFileSync(tokensFile(), JSON.stringify(store, null, 2) + '\n', 'utf-8');
 }
 
 export function getPropertySlugForToken(token: string): string | null {
