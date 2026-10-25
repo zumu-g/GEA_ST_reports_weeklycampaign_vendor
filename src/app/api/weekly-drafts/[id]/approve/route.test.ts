@@ -69,7 +69,7 @@ describe('POST /api/weekly-drafts/[id]/approve', () => {
     await POST(new NextRequest('http://localhost'), { params: Promise.resolve({ id: 'test-slug--2026-10-21' }) });
 
     const email = enqueueNotification.mock.calls.map(c => c[0]).find(n => n.channel === 'email');
-    expect(email).toMatchObject({ to: { email: 'jo@example.com' }, slug: 'test-slug', notificationType: 'Weekly Report' });
+    expect(email).toMatchObject({ to: { email: 'jo@example.com' }, vendor: 'Jo', slug: 'test-slug', notificationType: 'Weekly Report' });
     expect(email.portalUrl).toContain('/vendor/tok123');
     expect(email.body).toContain('Two strong inspections this week.');
     expect(email.body).toContain('420 views');

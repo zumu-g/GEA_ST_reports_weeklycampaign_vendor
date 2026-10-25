@@ -96,13 +96,15 @@ export async function POST(_req: NextRequest, { params }: Params) {
     // Email the vendor their weekly report: recap + combined REA/Domain stats
     // + portal link. Queued (not sent inline) so the dispatcher retries and
     // honours the vendor's preferences/quiet hours.
-    const ownerEmail = token ? getTokenMeta(token).ownerEmail : undefined;
+    const meta = token ? getTokenMeta(token) : {};
+    const ownerEmail = meta.ownerEmail;
     if (ownerEmail && token) {
       const views = draft.reaViews + draft.domainViews;
       const enquiries = draft.reaEnquiries + draft.domainEnquiries;
       await enqueueNotification({
         channel: 'email',
         to: { email: ownerEmail },
+        vendor: meta.ownerName,
         slug: draft.propertySlug,
         subject: `Your weekly campaign report — ${draft.propertyAddress}`,
         body: `Week ending ${draft.weekEnding}: ${views} views, ${enquiries} enquiries across realestate.com.au and Domain.\n\n${draft.agentCommentary}`,
